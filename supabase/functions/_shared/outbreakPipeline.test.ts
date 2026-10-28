@@ -89,6 +89,9 @@ describe('buildFarmAssessments', () => {
     expect(zoneB.risk_level).toBe('high');
     expect(zoneB.is_spreading).toBe(true);
     expect(zoneB.signals.spreadRank).toBe(2);
+    // The farm-wide start date is the earliest affected zone, not this zone's own first day.
+    expect(zoneB.signals.spreadFirstDetectedOn).toBe(TODAY);
+    expect(zoneB.signals.spreadStartedOn).toBe(addDays(TODAY, -1));
     // Zone A recovered today, so it is not flagged as spreading now.
     expect(rows.find((r) => r.zone_id === 'a')!.is_spreading).toBe(false);
   });

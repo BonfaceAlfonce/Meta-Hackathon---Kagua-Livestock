@@ -154,6 +154,8 @@ export function buildFarmAssessments(
         ...result.signals,
         spreadRank: spread.isSpreading && spreadInfo ? spreadInfo.rank : null,
         spreadFirstDetectedOn: spread.isSpreading && spreadInfo ? spreadInfo.firstDetectedOn : null,
+        /** When the outbreak pattern began anywhere on the farm (earliest affected zone). */
+        spreadStartedOn: spread.isSpreading ? spread.zones[0].firstDetectedOn : null,
         thresholdsVersion: 'default-v1',
       },
       is_spreading: spread.isSpreading && spreadInfo !== undefined && isAtLeast(result.riskLevel, 'medium'),
@@ -197,6 +199,61 @@ export function peakRiskPerFarm(rows: RegionalAssessmentRow[]): FarmWindowRisk[]
 /** Inclusive date range for the regional window ending on `asOf`. */
 export function regionalWindow(asOf: string, days = 7): { windowStart: string; windowEnd: string } {
   return { windowStart: addDays(asOf, -(days - 1)), windowEnd: asOf };
+}
+
+export interface ExistingAssessment {
+  zone_id: string;
+  risk_level: RiskLevel;
+  score: number | string;
+  is_spreading: boolean;
+  signals: Record<string, unknown>;
+  ai_status: 'pending' | 'generated' | 'fallback';
+}
+
+/** JSON with sorted object keys, so values compare equal regardless of jsonb key order. */
+export function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+  if (value !== null && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .filter(([, v]) => v !== undefined)
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+    return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${canonicalJson(v)}`).join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
+export type AssessmentRowWithoutAi = Omit<AssessmentRow, 'ai_status' | 'ai_summary' | 'ai_farmer_message' | 'ai_vet_summary'>;
+
+/**
+ * Splits today's rows into those whose result changed (AI text must be regenerated)
+ * and those unchanged since the last run (keep existing AI text, update signals only).
+ * Avoids paying for identical explanations on every scheduled or manual run.
+ */
+export function planAssessmentWrites(
+  rows: AssessmentRow[],
+  existing: ExistingAssessment[],
+): { changed: AssessmentRow[]; unchanged: AssessmentRowWithoutAi[] } {
+  const previous = new Map(existing.map((e) => [e.zone_id, e]));
+  const changed: AssessmentRow[] = [];
+  const unchanged: AssessmentRowWithoutAi[] = [];
+  for (const row of rows) {
+    const old = previous.get(row.zone_id);
+    const same =
+      old !== undefined &&
+      old.ai_status !== 'pending' &&
+      old.risk_level === row.risk_level &&
+      Number(old.score) === row.score &&
+      old.is_spreading === row.is_spreading &&
+      // Explanations cite the signal values (e.g. deaths), so any change must regenerate them.
+      canonicalJson(old.signals) === canonicalJson(row.signals);
+    if (same) {
+      const { ai_status: _s, ai_summary: _a, ai_farmer_message: _f, ai_vet_summary: _v, ...rest } = row;
+      unchanged.push(rest);
+    } else {
+      changed.push(row);
+    }
+  }
+  return { changed, unchanged };
 }
 
 /** Constant-time string comparison for shared secrets. */
