@@ -71,7 +71,7 @@ export function zoneFacts(signals = {}) {
   if (signals.missingTodayLog) facts.push({ key: 'missing', text: "Today's flock log is missing", tone: 'muted' });
   if (typeof signals.deaths === 'number') {
     const usual = typeof signals.baselineDeaths === 'number' ? ` · usual ${signals.baselineDeaths}` : '';
-    facts.push({ key: 'deaths', text: `${signals.deaths} deaths${usual}`, tone: signals.mortalitySpike ? 'alert' : 'normal' });
+    facts.push({ key: 'deaths', text: `${signals.deaths} ${signals.deaths === 1 ? 'death' : 'deaths'}${usual}`, tone: signals.mortalitySpike ? 'alert' : 'normal' });
   }
   if (typeof signals.lowestIntakePct === 'number') {
     facts.push({ key: 'intake', text: `Intake ${signals.lowestIntakePct}% of normal`, tone: signals.intakeDrop ? 'alert' : 'normal' });

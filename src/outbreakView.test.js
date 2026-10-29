@@ -48,6 +48,10 @@ describe('zoneFacts', () => {
     assert.equal(facts.every((f) => f.tone === 'alert'), true);
   });
 
+  it('uses the singular for one death', () => {
+    assert.equal(zoneFacts({ deaths: 1, baselineDeaths: 1 })[0].text, '1 death · usual 1');
+  });
+
   it('flags a missing log and skips unknown values', () => {
     assert.deepEqual(zoneFacts({ missingTodayLog: true, deaths: null, lowestIntakePct: null }), [
       { key: 'missing', text: "Today's flock log is missing", tone: 'muted' },
