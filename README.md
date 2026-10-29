@@ -46,7 +46,7 @@ To comply with the hackathon's *new work only* rule, work is clearly separated.
 | AI analysis of sensor readings + camera snapshots | Muse Spark | Planned |
 | Flock behaviour detection (huddling, spreading, immobile birds) | SAM 3.1 + Muse Spark | Planned |
 | WhatsApp / SMS alerts | — | Planned |
-| Regional disease early warning (anonymised cross-farm clusters) | Muse Spark | Planned |
+| **Outbreak Shield**: outbreak detection, spread tracking and anonymised regional warning ([details](#outbreak-shield)) | Muse Spark (`muse-spark-1.3`) | Built, in review |
 
 _Update this table as features ship. Each feature links to its pull request._
 
@@ -65,11 +65,64 @@ ESP32 sensors + camera
         └──► AI layer (Meta Model API)
                ├─ Muse Spark: sensor + image analysis → farm_alerts
                ├─ SAM 3.1: flock segmentation
-               └─ Regional early warning → regional_signals
+               └─ Outbreak Shield (Muse Spark explanations)
+                    → outbreak_assessments, regional_signals
                         │
                         ▼
                WhatsApp / SMS alerts
 ```
+
+## Outbreak Shield
+
+Early warning when flock signs suggest a **contagious outbreak**, on the farm and in the surrounding county.
+
+1. **Detect.** Each zone gets a daily risk level (`none` / `low` / `medium` / `high`) from deterministic rules in code: deaths against the zone's own 7-day baseline, feed and water intake, sensor activity, and reported breathing problems. High risk requires a mortality spike plus at least one other signal.
+2. **Track spread.** When two or more zones of a farm reach medium or higher within 2 days, the page shows the order they were hit.
+3. **Warn the region.** When 3 or more farms in a county show warning signs within 7 days, every farm in that county sees an anonymous warning. Farms are never named; a database `CHECK` constraint rejects any regional row for fewer than 3 farms.
+4. **Explain with Muse Spark.** Medium and high results get a plain-language explanation, a short farmer message and a vet summary.
+
+Checks run when a farmer saves a daily flock log, when someone presses **Run check**, and automatically every hour (Supabase Cron).
+
+### Meta AI usage
+
+**Every model this project calls at runtime is a Meta model.** Outbreak Shield calls exactly one: **Muse Spark (`muse-spark-1.3`) through the Meta Model API** (`https://api.meta.ai/v1/chat/completions`).
+
+| Call | When | Input | Output (strict JSON schema) |
+|---|---|---|---|
+| Zone explanation | Each zone whose result is medium or high **and changed** since the last run | The zone's computed signals (numbers only, no farm IDs) | `explanation`, `farmerMessage`, `vetSummary` |
+| Regional summary | Each new or changed county warning | County aggregates only | `summary` |
+
+- Client: `supabase/functions/_shared/museSpark.ts` (strict `json_schema` output, timeouts, retries only on 429/500/503). Called from the `outbreak-shield` Edge Function; the key never reaches the browser.
+- **Code decides the risk; Muse Spark only explains it.** Every answer is validated in code: length limits plus a guardrail that rejects disease names, drugs and treatment advice. If a call fails or is rejected, a built-in template is shown instead and the card is labelled accordingly.
+- The page labels AI text **"Explained by Muse Spark"**, and each run reports how many explanations were generated.
+
+### Setup (after the base schema)
+
+1. **Database:** apply the migrations in order (`npx supabase db push`, or run each file in the SQL Editor):
+   - `20261028000000_outbreak_shield.sql` (tables, RLS, privacy constraint)
+   - `20261029000000_outbreak_shield_schedule.sql` (hourly job; enables `pg_cron` and `pg_net`)
+2. **Secrets** for the Edge Function:
+   ```bash
+   npx supabase secrets set OUTBREAK_CRON_SECRET=<random, 16+ characters>
+   npx supabase secrets set MODEL_API_KEY=<Meta Model API key>
+   ```
+3. **Deploy:**
+   ```bash
+   npx supabase functions deploy outbreak-shield --use-api --no-verify-jwt
+   ```
+   `--no-verify-jwt` is intentional: the function checks either the cron secret or the user's token and farm role itself.
+4. **Hourly schedule:** add two Vault secrets (Dashboard → Integrations → Vault): `outbreak_shield_url` = `https://<project-ref>.supabase.co`, and `outbreak_cron_secret` = the same value as `OUTBREAK_CRON_SECRET`. Until both exist, the job does nothing.
+5. **Demo data (sandbox only):** set your login email in `supabase/demo_seed_outbreak_shield.sql`, run it, then call the function for yesterday and today.
+
+### Tests
+```bash
+npm test
+```
+Node's built-in test runner covers scoring, spread and regional aggregation, the Muse Spark client, guardrails and fallbacks, and the page's view logic.
+
+> Outbreak Shield flags unusual patterns for follow-up. It does not diagnose disease or recommend treatment.
+
+---
 
 ## Tech stack
 
@@ -111,7 +164,7 @@ In the Supabase SQL Editor, run the **entire** file:
 ```
 supabase/migrations/20261026000000_farm_monitoring_schema.sql
 ```
-See `supabase/SQL_EDITOR_ORDER.md` for details, then optionally load demo data from `supabase/demo_seed_*.sql`.
+See `supabase/SQL_EDITOR_ORDER.md` for details, then optionally load demo data from `supabase/demo_seed_*.sql`. For Outbreak Shield, also apply the later migrations; see [Outbreak Shield setup](#setup-after-the-base-schema).
 
 ### 4. Run
 ```bash
@@ -145,7 +198,7 @@ pnpm dev
 | Name | Role |
 |---|---|
 | Bonface Alfonce | Project lead · hardware, backend, dashboard |
-| Jean-Claude Adjanohoun | AI integration · regional early warning |
+| Jean-Claude Adjanohoun | Outbreak Shield · Muse Spark integration |
 | Soumyajit Das | AI · computer vision |
 
 ## Roadmap
