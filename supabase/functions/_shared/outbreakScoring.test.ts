@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
 import {
   addDays,
   aggregateRegional,
@@ -39,24 +40,24 @@ function activityHistory(todayLevel: number | null, baseline = 50): DailyActivit
 describe('assessZone', () => {
   it('returns none on a normal day', () => {
     const result = assessZone({ assessedOn: TODAY, logs: history({}), activity: activityHistory(50) });
-    expect(result.riskLevel).toBe('none');
-    expect(result.score).toBe(0);
-    expect(result.signals.mortalitySpike).toBe(false);
-    expect(result.signals.baselineDeaths).toBe(1);
-    expect(result.signals.deathThreshold).toBe(3);
+    assert.equal(result.riskLevel, 'none');
+    assert.equal(result.score, 0);
+    assert.equal(result.signals.mortalitySpike, false);
+    assert.equal(result.signals.baselineDeaths, 1);
+    assert.equal(result.signals.deathThreshold, 3);
   });
 
   it('never rates a single signal as high — a mortality spike alone is medium', () => {
     const result = assessZone({ assessedOn: TODAY, logs: history({ deaths: 12 }) });
-    expect(result.signals.mortalitySpike).toBe(true);
-    expect(result.riskLevel).toBe('medium');
+    assert.equal(result.signals.mortalitySpike, true);
+    assert.equal(result.riskLevel, 'medium');
   });
 
   it('rates a mortality spike corroborated by an intake drop as high', () => {
     const result = assessZone({ assessedOn: TODAY, logs: history({ deaths: 12, waterIntakePct: 60 }) });
-    expect(result.signals.intakeDrop).toBe(true);
-    expect(result.signals.lowestIntakePct).toBe(60);
-    expect(result.riskLevel).toBe('high');
+    assert.equal(result.signals.intakeDrop, true);
+    assert.equal(result.signals.lowestIntakePct, 60);
+    assert.equal(result.riskLevel, 'high');
   });
 
   it('rates a mortality spike plus an activity drop as high', () => {
@@ -65,9 +66,9 @@ describe('assessZone', () => {
       logs: history({ deaths: 12 }),
       activity: activityHistory(30),
     });
-    expect(result.signals.activityDrop).toBe(true);
-    expect(result.signals.activityChangePct).toBe(-40);
-    expect(result.riskLevel).toBe('high');
+    assert.equal(result.signals.activityDrop, true);
+    assert.equal(result.signals.activityChangePct, -40);
+    assert.equal(result.riskLevel, 'high');
   });
 
   it('caps at medium without a mortality spike, even with every other signal', () => {
@@ -76,63 +77,63 @@ describe('assessZone', () => {
       logs: history({ feedIntakePct: 50, respiratorySigns: true }),
       activity: activityHistory(20),
     });
-    expect(result.score).toBe(6);
-    expect(result.riskLevel).toBe('medium');
+    assert.equal(result.score, 6);
+    assert.equal(result.riskLevel, 'medium');
   });
 
   it('rates one non-mortality signal as low', () => {
     const result = assessZone({ assessedOn: TODAY, logs: history({ respiratorySigns: true }) });
-    expect(result.riskLevel).toBe('low');
+    assert.equal(result.riskLevel, 'low');
   });
 
   it('scales the threshold with the baseline so a high-normal flock is not flagged', () => {
     const logs = [1, 2, 3, 4, 5, 6, 7].map((d) => log(d, { deaths: 4, flockSize: 2000 }));
     logs.push(log(0, { deaths: 10, flockSize: 2000 }));
     const result = assessZone({ assessedOn: TODAY, logs });
-    expect(result.signals.deathThreshold).toBe(12);
-    expect(result.signals.mortalitySpike).toBe(false);
+    assert.equal(result.signals.deathThreshold, 12);
+    assert.equal(result.signals.mortalitySpike, false);
   });
 
   it('flags a spike when daily deaths reach 1% of the flock, even above the threshold baseline', () => {
     const logs = [1, 2, 3, 4, 5, 6, 7].map((d) => log(d, { deaths: 2, flockSize: 300 }));
     logs.push(log(0, { deaths: 3, flockSize: 300 }));
     const result = assessZone({ assessedOn: TODAY, logs });
-    expect(result.signals.mortalitySpike).toBe(true);
+    assert.equal(result.signals.mortalitySpike, true);
   });
 
   it('uses the fallback floor when there is too little history', () => {
     const result = assessZone({ assessedOn: TODAY, logs: [log(1), log(0, { deaths: 3, flockSize: 1000 })] });
-    expect(result.signals.usedFallbackBaseline).toBe(true);
-    expect(result.signals.deathThreshold).toBe(DEFAULT_CONFIG.minDeathsForSpike);
-    expect(result.signals.mortalitySpike).toBe(true);
+    assert.equal(result.signals.usedFallbackBaseline, true);
+    assert.equal(result.signals.deathThreshold, DEFAULT_CONFIG.minDeathsForSpike);
+    assert.equal(result.signals.mortalitySpike, true);
   });
 
   it('ignores history outside the baseline window', () => {
     const old = [10, 11, 12, 13].map((d) => log(d, { deaths: 50 }));
     const result = assessZone({ assessedOn: TODAY, logs: [...old, log(0, { deaths: 3 })] });
-    expect(result.signals.usedFallbackBaseline).toBe(true);
+    assert.equal(result.signals.usedFallbackBaseline, true);
   });
 
   it('reports unknown (null), not false, when today has no log', () => {
     const result = assessZone({ assessedOn: TODAY, logs: [log(1), log(2), log(3)] });
-    expect(result.signals.missingTodayLog).toBe(true);
-    expect(result.signals.mortalitySpike).toBeNull();
-    expect(result.signals.intakeDrop).toBeNull();
-    expect(result.riskLevel).toBe('none');
+    assert.equal(result.signals.missingTodayLog, true);
+    assert.equal(result.signals.mortalitySpike, null);
+    assert.equal(result.signals.intakeDrop, null);
+    assert.equal(result.riskLevel, 'none');
   });
 
   it('leaves intake unknown when neither intake value was recorded', () => {
     const result = assessZone({ assessedOn: TODAY, logs: history({ feedIntakePct: null, waterIntakePct: null }) });
-    expect(result.signals.intakeDrop).toBeNull();
+    assert.equal(result.signals.intakeDrop, null);
   });
 
   it('leaves activity unknown with missing readings or a zero baseline', () => {
-    expect(assessZone({ assessedOn: TODAY, logs: history({}), activity: activityHistory(null) }).signals.activityDrop).toBeNull();
-    expect(assessZone({ assessedOn: TODAY, logs: history({}), activity: activityHistory(10, 0) }).signals.activityDrop).toBeNull();
+    assert.equal(assessZone({ assessedOn: TODAY, logs: history({}), activity: activityHistory(null) }).signals.activityDrop, null);
+    assert.equal(assessZone({ assessedOn: TODAY, logs: history({}), activity: activityHistory(10, 0) }).signals.activityDrop, null);
   });
 
   it('rejects malformed dates', () => {
-    expect(() => assessZone({ assessedOn: '28/10/2026', logs: [] })).toThrow(RangeError);
+    assert.throws(() => assessZone({ assessedOn: '28/10/2026', logs: [] }), RangeError);
   });
 });
 
@@ -146,9 +147,10 @@ describe('detectSpread', () => {
       ],
       TODAY,
     );
-    expect(result.isSpreading).toBe(true);
-    expect(result.zones.map((z) => z.zoneId)).toEqual(['zone-a', 'zone-b']);
-    expect(result.zones[0]).toMatchObject({ firstDetectedOn: addDays(TODAY, -1), peakRiskLevel: 'high' });
+    assert.equal(result.isSpreading, true);
+    assert.deepEqual(result.zones.map((z) => z.zoneId), ['zone-a', 'zone-b']);
+    assert.equal(result.zones[0].firstDetectedOn, addDays(TODAY, -1));
+    assert.equal(result.zones[0].peakRiskLevel, 'high');
   });
 
   it('does not report spread for zones outside the window or below medium', () => {
@@ -160,8 +162,8 @@ describe('detectSpread', () => {
       ],
       TODAY,
     );
-    expect(result.isSpreading).toBe(false);
-    expect(result.zones).toHaveLength(1);
+    assert.equal(result.isSpreading, false);
+    assert.equal(result.zones.length, 1);
   });
 });
 
@@ -179,16 +181,16 @@ describe('aggregateRegional', () => {
       farm('f2', 'Kiambu', 'medium'),
       farm('f3', 'Kiambu', 'medium'),
     ]);
-    expect(signal).toEqual({ countryCode: 'KE', county: 'Kiambu', farmsAffected: 3, farmsHigh: 1, riskLevel: 'medium' });
+    assert.deepEqual(signal, { countryCode: 'KE', county: 'Kiambu', farmsAffected: 3, farmsHigh: 1, riskLevel: 'medium' });
   });
 
   it('suppresses counties with fewer than 3 affected farms (k-anonymity)', () => {
-    expect(aggregateRegional([farm('f1', 'Kiambu', 'high'), farm('f2', 'Kiambu', 'high'), farm('f3', 'Kiambu', 'low')])).toEqual([]);
+    assert.deepEqual(aggregateRegional([farm('f1', 'Kiambu', 'high'), farm('f2', 'Kiambu', 'high'), farm('f3', 'Kiambu', 'low')]), []);
   });
 
   it('rates the region high when at least 2 farms are high', () => {
     const [signal] = aggregateRegional([farm('f1', 'Kiambu', 'high'), farm('f2', 'Kiambu', 'high'), farm('f3', 'Kiambu', 'medium')]);
-    expect(signal.riskLevel).toBe('high');
+    assert.equal(signal.riskLevel, 'high');
   });
 
   it('counts a farm once, normalises county names, and skips farms without a county', () => {
@@ -199,11 +201,11 @@ describe('aggregateRegional', () => {
       farm('f3', null, 'high'),
       farm('f4', '', 'high'),
     ]);
-    expect(signals).toEqual([]);
+    assert.deepEqual(signals, []);
   });
 
   it('never includes farm identifiers in its output', () => {
     const signals = aggregateRegional([farm('secret-1', 'Nakuru', 'high'), farm('secret-2', 'Nakuru', 'high'), farm('secret-3', 'Nakuru', 'high')]);
-    expect(JSON.stringify(signals)).not.toMatch(/secret/);
+    assert.doesNotMatch(JSON.stringify(signals), /secret/);
   });
 });

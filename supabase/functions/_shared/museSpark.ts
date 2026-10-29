@@ -29,9 +29,15 @@ export interface StructuredCallOptions {
 }
 
 export class MuseSparkError extends Error {
-  constructor(message: string, readonly status: number | null, readonly retryable: boolean) {
+  readonly status: number | null;
+  readonly retryable: boolean;
+
+  // Explicit fields (not TS parameter properties) so Node's type stripping can run this file in tests.
+  constructor(message: string, status: number | null, retryable: boolean) {
     super(message);
     this.name = 'MuseSparkError';
+    this.status = status;
+    this.retryable = retryable;
   }
 }
 

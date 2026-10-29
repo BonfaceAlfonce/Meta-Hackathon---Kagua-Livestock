@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
 import {
   buildFarmAssessments,
   dailyActivityByZone,
@@ -32,22 +33,21 @@ const normalWeek = (zoneId: string) => [1, 2, 3, 4, 5, 6, 7].map((d) => logRow(z
 describe('localDate', () => {
   it('uses the farm timezone, not UTC', () => {
     // 22:30 UTC on Oct 27 is already Oct 28 in Nairobi (UTC+3).
-    expect(localDate('2026-10-27T22:30:00Z', 'Africa/Nairobi')).toBe('2026-10-28');
-    expect(localDate('2026-10-27T22:30:00Z', 'UTC')).toBe('2026-10-27');
+    assert.equal(localDate('2026-10-27T22:30:00Z', 'Africa/Nairobi'), '2026-10-28');
+    assert.equal(localDate('2026-10-27T22:30:00Z', 'UTC'), '2026-10-27');
   });
 
   it('falls back to UTC for an unknown timezone', () => {
-    expect(localDate('2026-10-27T22:30:00Z', 'Not/AZone')).toBe('2026-10-27');
+    assert.equal(localDate('2026-10-27T22:30:00Z', 'Not/AZone'), '2026-10-27');
   });
 });
 
 describe('toFlockLog', () => {
   it('converts numeric strings from Postgres and keeps unknown intake as null', () => {
-    expect(toFlockLog(logRow('z', 0, { deaths: '4', feed_intake_pct: '72.50', water_intake_pct: null }))).toMatchObject({
-      deaths: 4,
-      feedIntakePct: 72.5,
-      waterIntakePct: null,
-    });
+    const converted = toFlockLog(logRow('z', 0, { deaths: '4', feed_intake_pct: '72.50', water_intake_pct: null }));
+    assert.equal(converted.deaths, 4);
+    assert.equal(converted.feedIntakePct, 72.5);
+    assert.equal(converted.waterIntakePct, null);
   });
 });
 
@@ -63,8 +63,8 @@ describe('dailyActivityByZone', () => {
       ],
       'Africa/Nairobi',
     );
-    expect(result.get('a')).toEqual([{ date: '2026-10-28', activityLevel: 130 / 3 }]);
-    expect(result.size).toBe(1);
+    assert.deepEqual(result.get('a'), [{ date: '2026-10-28', activityLevel: 130 / 3 }]);
+    assert.equal(result.size, 1);
   });
 });
 
@@ -73,9 +73,9 @@ describe('buildFarmAssessments', () => {
 
   it('produces one row per zone, including zones with no logs', () => {
     const rows = buildFarmAssessments({ ...base, zoneIds: ['a', 'b'], logs: [...normalWeek('a'), logRow('a', 0)] });
-    expect(rows.map((r) => [r.zone_id, r.risk_level])).toEqual([['a', 'none'], ['b', 'none']]);
-    expect(rows[1].signals.missingTodayLog).toBe(true);
-    expect(rows.every((r) => r.ai_status === 'pending' && r.ai_summary === null)).toBe(true);
+    assert.deepEqual(rows.map((r) => [r.zone_id, r.risk_level]), [['a', 'none'], ['b', 'none']]);
+    assert.equal(rows[1].signals.missingTodayLog, true);
+    assert.equal(rows.every((r) => r.ai_status === 'pending' && r.ai_summary === null), true);
   });
 
   it('marks spread across zones using stored results from yesterday', () => {
@@ -86,14 +86,14 @@ describe('buildFarmAssessments', () => {
       previousRisks: [{ zoneId: 'a', assessedOn: addDays(TODAY, -1), riskLevel: 'high' }],
     });
     const zoneB = rows.find((r) => r.zone_id === 'b')!;
-    expect(zoneB.risk_level).toBe('high');
-    expect(zoneB.is_spreading).toBe(true);
-    expect(zoneB.signals.spreadRank).toBe(2);
+    assert.equal(zoneB.risk_level, 'high');
+    assert.equal(zoneB.is_spreading, true);
+    assert.equal(zoneB.signals.spreadRank, 2);
     // The farm-wide start date is the earliest affected zone, not this zone's own first day.
-    expect(zoneB.signals.spreadFirstDetectedOn).toBe(TODAY);
-    expect(zoneB.signals.spreadStartedOn).toBe(addDays(TODAY, -1));
+    assert.equal(zoneB.signals.spreadFirstDetectedOn, TODAY);
+    assert.equal(zoneB.signals.spreadStartedOn, addDays(TODAY, -1));
     // Zone A recovered today, so it is not flagged as spreading now.
-    expect(rows.find((r) => r.zone_id === 'a')!.is_spreading).toBe(false);
+    assert.equal(rows.find((r) => r.zone_id === 'a')!.is_spreading, false);
   });
 
   it('does not mark spread for a single affected zone', () => {
@@ -102,7 +102,7 @@ describe('buildFarmAssessments', () => {
       zoneIds: ['a', 'b'],
       logs: [...normalWeek('a'), ...normalWeek('b'), logRow('a', 0), logRow('b', 0, { deaths: 15, water_intake_pct: 55 })],
     });
-    expect(rows.some((r) => r.is_spreading)).toBe(false);
+    assert.equal(rows.some((r) => r.is_spreading), false);
   });
 });
 
@@ -113,7 +113,7 @@ describe('peakRiskPerFarm', () => {
       { farm_id: 'f1', risk_level: 'high', farms: { country_code: 'KE', county: 'Kiambu' } },
       { farm_id: 'f2', risk_level: 'high', farms: null },
     ]);
-    expect(result).toEqual([{ farmId: 'f1', countryCode: 'KE', county: 'Kiambu', peakRiskLevel: 'high' }]);
+    assert.deepEqual(result, [{ farmId: 'f1', countryCode: 'KE', county: 'Kiambu', peakRiskLevel: 'high' }]);
   });
 
   it('accepts the join as an object or a one-element array', () => {
@@ -121,19 +121,19 @@ describe('peakRiskPerFarm', () => {
       { farm_id: 'f1', risk_level: 'high', farms: [{ country_code: 'KE', county: 'Nakuru' }] },
       { farm_id: 'f2', risk_level: 'medium', farms: [] },
     ]);
-    expect(result).toEqual([{ farmId: 'f1', countryCode: 'KE', county: 'Nakuru', peakRiskLevel: 'high' }]);
+    assert.deepEqual(result, [{ farmId: 'f1', countryCode: 'KE', county: 'Nakuru', peakRiskLevel: 'high' }]);
   });
 });
 
 describe('helpers', () => {
   it('builds an inclusive 7-day regional window', () => {
-    expect(regionalWindow(TODAY)).toEqual({ windowStart: '2026-10-22', windowEnd: TODAY });
+    assert.deepEqual(regionalWindow(TODAY), { windowStart: '2026-10-22', windowEnd: TODAY });
   });
 
   it('compares secrets without short-circuiting', () => {
-    expect(timingSafeEqual('s3cret-value', 's3cret-value')).toBe(true);
-    expect(timingSafeEqual('s3cret-value', 's3cret-valuX')).toBe(false);
-    expect(timingSafeEqual('short', 'longer-secret')).toBe(false);
-    expect(timingSafeEqual('', '')).toBe(true);
+    assert.equal(timingSafeEqual('s3cret-value', 's3cret-value'), true);
+    assert.equal(timingSafeEqual('s3cret-value', 's3cret-valuX'), false);
+    assert.equal(timingSafeEqual('short', 'longer-secret'), false);
+    assert.equal(timingSafeEqual('', ''), true);
   });
 });

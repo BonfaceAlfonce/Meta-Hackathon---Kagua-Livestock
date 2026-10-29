@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
+import assert from 'node:assert/strict';
+import { describe, it, mock } from 'node:test';
 import {
   buildRegionalMessages,
   buildZoneMessages,
@@ -54,88 +55,89 @@ const good = {
 };
 
 function modelReply(content: unknown) {
-  return vi.fn(async () =>
-    new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(content), refusal: null }, finish_reason: 'stop' }] }), { status: 200 }),
-  );
+  return async () =>
+    new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(content), refusal: null }, finish_reason: 'stop' }] }), { status: 200 });
 }
 
-const client = (fetchImpl: ReturnType<typeof vi.fn>) => ({ apiKey: 'k', fetchImpl: fetchImpl as unknown as typeof fetch, sleep: async () => {} });
+const client = (fetchImpl: (...args: unknown[]) => Promise<Response>) => ({ apiKey: 'k', fetchImpl: fetchImpl as unknown as typeof fetch, sleep: async () => {} });
 
 describe('prompts', () => {
   it('never sends farm identifiers or unexpected signal fields to the model', () => {
     const text = buildZoneMessages(zone()).map((m) => m.content).join('\n');
-    expect(text).not.toContain('secret-farm-id');
-    expect(text).toContain('"deathsToday":12');
-    expect(text).toContain('Never name, suggest or rule out any disease');
+    assert.ok(!text.includes('secret-farm-id'));
+    assert.ok(text?.includes('"deathsToday":12'));
+    assert.ok(text?.includes('Never name, suggest or rule out any disease'));
   });
 
   it('regional prompt contains aggregates only', () => {
     const text = buildRegionalMessages(region).map((m) => m.content).join('\n');
-    expect(text).toContain('"farmsWithWarningSigns":4');
-    expect(text).toContain('Do not identify any farm');
+    assert.ok(text?.includes('"farmsWithWarningSigns":4'));
+    assert.ok(text?.includes('Do not identify any farm'));
   });
 });
 
 describe('guardrails', () => {
-  it.each([
+  for (const farmerMessage of [
     'This looks like Newcastle disease.',
     'Possible avian influenza outbreak.',
     'Give antibiotics in the water.',
     'Likely a viral infection.',
     'Vaccinate the flock now.',
-  ])('rejects forbidden content: %s', (farmerMessage) => {
-    const result = validateZoneExplanation({ ...good, farmerMessage });
-    expect(result.ok).toBe(false);
-  });
+  ]) {
+    it(`rejects forbidden content: ${farmerMessage}`, () => {
+      const result = validateZoneExplanation({ ...good, farmerMessage });
+      assert.equal(result.ok, false);
+    });
+  }
 
   it('accepts a compliant explanation', () => {
-    expect(validateZoneExplanation(good)).toEqual({ ok: true, value: good });
+    assert.deepEqual(validateZoneExplanation(good), { ok: true, value: good });
   });
 
   it('rejects missing fields and over-long text', () => {
-    expect(validateZoneExplanation({ ...good, vetSummary: '' }).ok).toBe(false);
-    expect(validateZoneExplanation({ ...good, farmerMessage: 'x'.repeat(321) }).ok).toBe(false);
-    expect(validateZoneExplanation(null).ok).toBe(false);
+    assert.equal(validateZoneExplanation({ ...good, vetSummary: '' }).ok, false);
+    assert.equal(validateZoneExplanation({ ...good, farmerMessage: 'x'.repeat(321) }).ok, false);
+    assert.equal(validateZoneExplanation(null).ok, false);
   });
 
   it('fallback templates themselves never contain forbidden terms', () => {
     for (const level of ['none', 'low', 'medium', 'high'] as const) {
       const text = Object.values(fallbackZoneExplanation(zone(level))).join(' ');
-      expect(findForbiddenTerm(text)).toBeNull();
+      assert.equal(findForbiddenTerm(text), null);
     }
-    expect(findForbiddenTerm(fallbackRegionalExplanation(region).summary)).toBeNull();
+    assert.equal(findForbiddenTerm(fallbackRegionalExplanation(region).summary), null);
   });
 
   it('fallback tells the farmer to contact a vet at high risk and cites the facts', () => {
     const fb = fallbackZoneExplanation(zone('high'));
-    expect(fb.farmerMessage).toMatch(/veterinarian/);
-    expect(fb.explanation).toContain('Deaths today: 12 (usual level about 1 per day).');
-    expect(fb.explanation).toContain('more than one zone since 2026-10-27');
+    assert.match(fb.farmerMessage, /veterinarian/);
+    assert.ok(fb.explanation?.includes('Deaths today: 12 (usual level about 1 per day).'));
+    assert.ok(fb.explanation?.includes('more than one zone since 2026-10-27'));
   });
 });
 
 describe('explainZone / explainRegion', () => {
   it('returns generated text when the model output passes validation', async () => {
     const outcome = await explainZone(zone(), client(modelReply(good)));
-    expect(outcome).toEqual({ status: 'generated', value: good });
+    assert.deepEqual(outcome, { status: 'generated', value: good });
   });
 
   it('falls back when the model names a disease', async () => {
     const outcome = await explainZone(zone(), client(modelReply({ ...good, explanation: 'Probably bird flu.' })));
-    expect(outcome.status).toBe('fallback');
-    expect(outcome.reason).toContain('bird flu');
-    expect(outcome.value).toEqual(fallbackZoneExplanation(zone()));
+    assert.equal(outcome.status, 'fallback');
+    assert.ok(outcome.reason?.includes('bird flu'));
+    assert.deepEqual(outcome.value, fallbackZoneExplanation(zone()));
   });
 
   it('falls back when the API fails', async () => {
-    const failing = vi.fn(async () => new Response('', { status: 401 }));
+    const failing = mock.fn(async () => new Response('', { status: 401 }));
     const outcome = await explainRegion(region, client(failing));
-    expect(outcome.status).toBe('fallback');
-    expect(outcome.value.summary).toContain('4 farms in Kiambu');
+    assert.equal(outcome.status, 'fallback');
+    assert.ok(outcome.value.summary?.includes('4 farms in Kiambu'));
   });
 
   it('only medium and high results need AI', () => {
-    expect(['none', 'low', 'medium', 'high'].map((l) => needsAi(l as RiskLevel))).toEqual([false, false, true, true]);
+    assert.deepEqual(['none', 'low', 'medium', 'high'].map((l) => needsAi(l as RiskLevel)), [false, false, true, true]);
   });
 });
 
@@ -163,16 +165,16 @@ describe('planAssessmentWrites', () => {
         { zone_id: 'd', risk_level: 'high', score: 8, is_spreading: false, signals: {}, ai_status: 'fallback' },
       ],
     );
-    expect(unchanged.map((r) => r.zone_id)).toEqual(['a']);
-    expect(unchanged[0]).not.toHaveProperty('ai_status');
-    expect(changed.map((r) => r.zone_id)).toEqual(['b', 'c', 'd']);
+    assert.deepEqual(unchanged.map((r) => r.zone_id), ['a']);
+    assert.equal('ai_status' in unchanged[0], false);
+    assert.deepEqual(changed.map((r) => r.zone_id), ['b', 'c', 'd']);
   });
 
   it('regenerates when the previous AI step never completed', () => {
     const { changed } = planAssessmentWrites([row('a', 'high', 8)], [
       { zone_id: 'a', risk_level: 'high', score: 8, is_spreading: false, signals: {}, ai_status: 'pending' },
     ]);
-    expect(changed).toHaveLength(1);
+    assert.equal(changed.length, 1);
   });
 
   it('regenerates when signal values change even if the risk level and score do not', () => {
@@ -180,7 +182,7 @@ describe('planAssessmentWrites', () => {
     const { changed } = planAssessmentWrites([today], [
       { zone_id: 'a', risk_level: 'high', score: 8, is_spreading: false, signals: { deaths: 14, baselineDeaths: 1 }, ai_status: 'generated' },
     ]);
-    expect(changed).toHaveLength(1);
+    assert.equal(changed.length, 1);
   });
 
   it('treats signals as equal regardless of key order (jsonb does not preserve it)', () => {
@@ -188,6 +190,6 @@ describe('planAssessmentWrites', () => {
     const { unchanged } = planAssessmentWrites([today], [
       { zone_id: 'a', risk_level: 'high', score: 8, is_spreading: false, signals: { baselineDeaths: 1, nested: { y: null, x: 1 }, deaths: 14 }, ai_status: 'generated' },
     ]);
-    expect(unchanged).toHaveLength(1);
+    assert.equal(unchanged.length, 1);
   });
 });
