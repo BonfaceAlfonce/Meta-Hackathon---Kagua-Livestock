@@ -209,11 +209,20 @@ export function fallbackRegionalExplanation(ctx: RegionalContext): RegionalExpla
 
 type ClientOptions = Omit<StructuredCallOptions, 'messages' | 'schemaName' | 'schema'>;
 
+/**
+ * Muse Spark reasons before answering, and reasoning tokens count toward max_completion_tokens.
+ * The client default (700) was cut off live with finish_reason "length", so give each note room
+ * for reasoning plus its longest allowed text (LIMITS). Callers can still override.
+ */
+export const ZONE_MAX_COMPLETION_TOKENS = 2500;
+export const REGIONAL_MAX_COMPLETION_TOKENS = 1200;
+
 export type ExplainOutcome<T> = { status: 'generated' | 'fallback'; value: T; reason?: string };
 
 export async function explainZone(ctx: ZoneContext, client: ClientOptions): Promise<ExplainOutcome<ZoneExplanation>> {
   try {
     const { data } = await callMuseSparkStructured<unknown>({
+      maxCompletionTokens: ZONE_MAX_COMPLETION_TOKENS,
       ...client,
       messages: buildZoneMessages(ctx),
       schemaName: 'zone_note',
@@ -230,6 +239,7 @@ export async function explainZone(ctx: ZoneContext, client: ClientOptions): Prom
 export async function explainRegion(ctx: RegionalContext, client: ClientOptions): Promise<ExplainOutcome<RegionalExplanation>> {
   try {
     const { data } = await callMuseSparkStructured<unknown>({
+      maxCompletionTokens: REGIONAL_MAX_COMPLETION_TOKENS,
       ...client,
       messages: buildRegionalMessages(ctx),
       schemaName: 'regional_note',

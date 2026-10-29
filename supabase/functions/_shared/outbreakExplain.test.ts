@@ -9,7 +9,9 @@ import {
   fallbackZoneExplanation,
   findForbiddenTerm,
   needsAi,
+  REGIONAL_MAX_COMPLETION_TOKENS,
   validateZoneExplanation,
+  ZONE_MAX_COMPLETION_TOKENS,
   type RegionalContext,
   type ZoneContext,
 } from './outbreakExplain.ts';
@@ -191,5 +193,19 @@ describe('planAssessmentWrites', () => {
       { zone_id: 'a', risk_level: 'high', score: 8, is_spreading: false, signals: { baselineDeaths: 1, nested: { y: null, x: 1 }, deaths: 14 }, ai_status: 'generated' },
     ]);
     assert.equal(unchanged.length, 1);
+  });
+});
+
+describe('token budget', () => {
+  it('gives zone and regional notes room for reasoning tokens (live call hit finish_reason "length" at 700)', async () => {
+    const zoneFetch = mock.fn(modelReply(good));
+    await explainZone(zone(), client(zoneFetch));
+    const zoneBody = JSON.parse((zoneFetch.mock.calls[0].arguments[1] as RequestInit).body as string);
+    assert.equal(zoneBody.max_completion_tokens, ZONE_MAX_COMPLETION_TOKENS);
+
+    const regionFetch = mock.fn(modelReply({ summary: 'Four farms in Kiambu reported warning signs this week.' }));
+    await explainRegion(region, client(regionFetch));
+    const regionBody = JSON.parse((regionFetch.mock.calls[0].arguments[1] as RequestInit).body as string);
+    assert.equal(regionBody.max_completion_tokens, REGIONAL_MAX_COMPLETION_TOKENS);
   });
 });
