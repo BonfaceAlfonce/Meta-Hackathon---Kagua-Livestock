@@ -27,14 +27,16 @@ begin
   select id into v_jean_farm from public.farms where name = 'Jean Farm' order by created_at limit 1;
   if v_jean_farm is null then
     insert into public.farms (name, timezone, country_code, settings)
-    values ('Jean Farm', 'Africa/Nairobi', 'KE', jsonb_build_object('demo', true))
+    values ('Jean Farm', 'America/Los_Angeles', 'US', jsonb_build_object('demo', true))
     returning id into v_jean_farm;
+    update public.farms set county = 'King County', locality = 'Seattle' where id = v_jean_farm;
   end if;
   select id into v_das_farm from public.farms where name = 'Das Farm' order by created_at limit 1;
   if v_das_farm is null then
     insert into public.farms (name, timezone, country_code, settings)
-    values ('Das Farm', 'Africa/Nairobi', 'KE', jsonb_build_object('demo', true))
+    values ('Das Farm', 'Asia/Kolkata', 'IN', jsonb_build_object('demo', true))
     returning id into v_das_farm;
+    update public.farms set county = null, locality = 'India' where id = v_das_farm;
   end if;
 
   insert into public.profiles (user_id, display_name) values (v_jean, 'Jean')
@@ -109,18 +111,18 @@ begin
   insert into public.camera_snapshots (farm_id, zone_id, device_id, telemetry_event_id, captured_at, storage_bucket, storage_path, content_type, is_night, ai_summary, ai_labels, metadata)
   select v_jean_farm, v_jean_zone, v_jean_device, e.id, e.captured_at, 'farm-media',
     'demo/'||v_jean_farm::text||'/jean-heat-stress.jpg', 'image/jpeg', e.is_night,
-    'DEMO IMAGE: reference photo depicts panting poultry. It is not a Jean Farm or ESP32 camera capture.',
-    jsonb_build_array('demo','poultry','panting reference'),
-    jsonb_build_object('demo',true,'demo_image_url','https://www.pluimveeloket.be/sites/default/files/inline-images/hijgende%20kippen_1.jpg','demo_image_source_url','https://www.pluimveeloket.be/Stalklimaat/Temperatuur/Coolchicks-Artikel-Tips-en-tricks','demo_image_source_credit','Pluimveeloket / ILVO Coolchicks article')
+    'DEMO IMAGE: sample photo of free-range hens. It is not a Jean Farm or ESP32 camera capture.',
+    jsonb_build_array('demo','poultry','hens reference'),
+    jsonb_build_object('demo',true,'demo_image_url','/images/free-range-hens.jpg','demo_image_source_credit','Kagua sample photo')
   from public.telemetry_events e where e.device_id=v_jean_device and e.source_event_id='JEAN-DEMO-03'
   on conflict (storage_bucket, storage_path) do update set farm_id=excluded.farm_id, zone_id=excluded.zone_id, device_id=excluded.device_id, telemetry_event_id=excluded.telemetry_event_id, captured_at=excluded.captured_at, ai_summary=excluded.ai_summary, ai_labels=excluded.ai_labels, metadata=excluded.metadata;
 
   insert into public.camera_snapshots (farm_id, zone_id, device_id, telemetry_event_id, captured_at, storage_bucket, storage_path, content_type, is_night, ai_summary, ai_labels, metadata)
   select v_das_farm, v_das_zone, v_das_device, e.id, e.captured_at, 'farm-media',
     'demo/'||v_das_farm::text||'/das-wet-ground.jpg', 'image/jpeg', e.is_night,
-    'DEMO IMAGE: reference photo depicts poultry on wet ground. It is not a Das Farm or ESP32 camera capture.',
-    jsonb_build_array('demo','poultry','wet-ground reference'),
-    jsonb_build_object('demo',true,'demo_image_url','https://images.unsplash.com/photo-1716797701752-e9214beb5f9e?auto=format&fit=crop&fm=jpg&q=80&w=1200','demo_image_source_url','https://unsplash.com/photos/un-gallo-parado-en-un-suelo-mojado-junto-a-un-trozo-de-comida-6sKsu4AjDPU','demo_image_source_credit','Mr Wang / Unsplash')
+    'DEMO IMAGE: sample photo of young chicks. It is not a Das Farm or ESP32 camera capture.',
+    jsonb_build_array('demo','poultry','chicks reference'),
+    jsonb_build_object('demo',true,'demo_image_url','/images/chicks-free-range.jpg','demo_image_source_credit','Kagua sample photo')
   from public.telemetry_events e where e.device_id=v_das_device and e.source_event_id='DAS-DEMO-03'
   on conflict (storage_bucket, storage_path) do update set farm_id=excluded.farm_id, zone_id=excluded.zone_id, device_id=excluded.device_id, telemetry_event_id=excluded.telemetry_event_id, captured_at=excluded.captured_at, ai_summary=excluded.ai_summary, ai_labels=excluded.ai_labels, metadata=excluded.metadata;
 
