@@ -99,7 +99,7 @@ Checks run when a farmer saves a daily flock log, when someone presses **Run che
 ### Setup (after the base schema)
 
 1. **Database:** apply the migrations in order (`npx supabase db push`, or run each file in the SQL Editor):
-   - `20261028000000_outbreak_shield.sql` (tables, RLS, privacy constraint)
+   - `20261028120000_outbreak_shield.sql` (tables, RLS, privacy constraint)
    - `20261029000000_outbreak_shield_schedule.sql` (hourly job; enables `pg_cron` and `pg_net`)
 2. **Secrets** for the Edge Function:
    ```bash

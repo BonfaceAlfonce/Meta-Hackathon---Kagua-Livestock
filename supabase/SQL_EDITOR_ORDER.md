@@ -74,3 +74,15 @@ $$;
 ```
 
 If you already ran fragments and see `already exists`, stop and run the full migration instead; `IF NOT EXISTS` protects tables, but it does not repair an existing table with the wrong columns. If the full migration still errors, send the complete error including its `ERROR:` code and `LINE` number.
+
+## Manual form submissions (run second)
+
+After the base migration above, run the **entire** file `migrations/20261028000000_farmer_manual_submissions.sql`. It grants farmer roles (owner/admin/operator) insert access for manual readings, snapshots, and photo uploads. Without it, the dashboard's Fill out data form is rejected by Row Level Security.
+
+## Demo farm locations and photos (data update)
+
+Run the **entire** file `update_farm_locations_and_demo_photos.sql` to place Jean Farm in Seattle, USA and Das Farm in India, and to repoint demo snapshots at verified poultry photos. Re-run the demo seed afterwards only on a fresh project; on a live project this update file is enough.
+
+## Outbreak Shield (run after the files above)
+
+Run each file in full, in this order: `migrations/20261028120000_outbreak_shield.sql`, `migrations/20261029000000_outbreak_shield_schedule.sql`, `migrations/20261030000000_outbreak_farm_checks.sql`. Then set the function secrets, deploy `outbreak-shield`, and add the two Vault secrets; see the Outbreak Shield section of the README.
