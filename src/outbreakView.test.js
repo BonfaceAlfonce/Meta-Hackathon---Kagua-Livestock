@@ -3,11 +3,13 @@ import { describe, it } from 'node:test';
 import {
   aiBadge,
   canEdit,
+  checkStatusText,
   farmToday,
   highestRisk,
   latestDay,
   regionalForFarm,
   spreadTimeline,
+  timeAgo,
   validateLog,
   zoneFacts,
   zoneHistory,
@@ -125,5 +127,26 @@ describe('small helpers', () => {
     assert.deepEqual(aiBadge('generated'), { label: 'Explained by Muse Spark', ai: true });
     assert.equal(aiBadge('fallback').ai, false);
     assert.equal(aiBadge('pending').label, 'Explanation pending');
+  });
+});
+
+describe('check freshness', () => {
+  const now = new Date('2026-10-30T10:00:00Z');
+
+  it('formats relative times', () => {
+    assert.equal(timeAgo('2026-10-30T09:59:30Z', now), 'just now');
+    assert.equal(timeAgo('2026-10-30T09:56:00Z', now), '4 min ago');
+    assert.equal(timeAgo('2026-10-30T07:30:00Z', now), '2 h ago');
+    assert.equal(timeAgo('2026-10-28T09:00:00Z', now), '2 d ago');
+    assert.equal(timeAgo(null, now), null);
+    assert.equal(timeAgo('not a date', now), null);
+  });
+
+  it('shows the last check and the newest change', () => {
+    const rows = [{ updated_at: '2026-10-30T07:30:00Z' }, { updated_at: '2026-10-30T08:00:00Z' }];
+    assert.equal(checkStatusText('2026-10-30T09:56:00Z', rows, now), 'Checked 4 min ago · last change 2 h ago');
+    assert.equal(checkStatusText(null, rows, now), 'Last change 2 h ago');
+    assert.equal(checkStatusText('2026-10-30T09:56:00Z', [], now), 'Checked 4 min ago');
+    assert.equal(checkStatusText(null, [], now), '');
   });
 });

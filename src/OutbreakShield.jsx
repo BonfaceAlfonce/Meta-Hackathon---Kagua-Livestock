@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Check, ChevronDown, ChevronUp, ClipboardCopy, ClipboardList, Info, MapPin, NotebookPen, RefreshCw, ShieldAlert, ShieldCheck, Sparkles, Stethoscope } from 'lucide-react';
+import { AlertTriangle, Check, ChevronDown, ChevronUp, ClipboardCopy, ClipboardList, Clock3, Info, MapPin, NotebookPen, RefreshCw, ShieldAlert, ShieldCheck, Sparkles, Stethoscope } from 'lucide-react';
 import {
   aiBadge,
   BIOSECURITY_STEPS,
   canEdit,
+  checkStatusText,
   farmToday,
   formatDay,
   highestRisk,
@@ -47,6 +48,8 @@ export default function OutbreakShield({ supabase, farm, role, zones, userId }) 
   const [openVet, setOpenVet] = useState(null);
   const [copied, setCopied] = useState(null);
   const [checked, setChecked] = useState(() => new Set());
+  const [lastCheckedAt, setLastCheckedAt] = useState(null);
+  const [now, setNow] = useState(() => new Date());
   const editor = canEdit(role);
 
   const zoneNames = useMemo(() => new Map(zones.map((zone) => [zone.id, zone.name])), [zones]);
@@ -54,10 +57,13 @@ export default function OutbreakShield({ supabase, farm, role, zones, userId }) 
   const load = useCallback(async () => {
     setLoadError('');
     const since = new Date(Date.now() - (HISTORY_DAYS + 1) * 86_400_000).toISOString().slice(0, 10);
-    const [assessmentRes, regionalRes] = await Promise.all([
+    const [assessmentRes, regionalRes, checkRes] = await Promise.all([
       supabase.from('outbreak_assessments').select(ASSESSMENT_COLUMNS).eq('farm_id', farm.id).gte('assessed_on', since).order('assessed_on', { ascending: false }).limit(500),
       supabase.from('regional_signals').select(REGIONAL_COLUMNS).order('window_end', { ascending: false }).limit(50),
+      supabase.from('outbreak_farm_checks').select('last_checked_at').eq('farm_id', farm.id).maybeSingle(),
     ]);
+    // Freshness is optional: if its table is missing or unreadable, the page still works without it.
+    setLastCheckedAt(checkRes.error ? null : checkRes.data?.last_checked_at ?? null);
     const failed = [assessmentRes, regionalRes].find((res) => res.error);
     if (failed) setLoadError(failed.error.message);
     else {
@@ -74,11 +80,18 @@ export default function OutbreakShield({ supabase, farm, role, zones, userId }) 
       .channel(`outbreak-${farm.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'outbreak_assessments', filter: `farm_id=eq.${farm.id}` }, () => load())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'regional_signals' }, () => load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'outbreak_farm_checks', filter: `farm_id=eq.${farm.id}` }, () => load())
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
   }, [supabase, farm.id, load]);
+
+  // Re-render every minute so "Checked 4 min ago" stays current.
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
 
   const { day, rows: todayRows } = useMemo(() => latestDay(assessments), [assessments]);
   const overall = highestRisk(todayRows);
@@ -140,6 +153,11 @@ export default function OutbreakShield({ supabase, farm, role, zones, userId }) 
                 ? 'Daily risk from flock logs and sensor activity. Kagua flags patterns for follow-up; it does not diagnose disease.'
                 : "Log today's flock numbers, then run a check to see each zone's risk."}
           </p>
+          {!loading && checkStatusText(lastCheckedAt, todayRows, now) && (
+            <small className="os-status-meta">
+              <Clock3 size={11} /> {checkStatusText(lastCheckedAt, todayRows, now)}
+            </small>
+          )}
         </div>
         {editor && (
           <button className="primary-button os-run" onClick={runCheck} disabled={running}>

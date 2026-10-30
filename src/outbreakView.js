@@ -166,3 +166,26 @@ export function validateLog(form) {
     },
   };
 }
+
+/** "just now", "5 min ago", "3 h ago", "2 d ago". Future or invalid times read as "just now" / null. */
+export function timeAgo(iso, now = new Date()) {
+  const then = new Date(iso);
+  if (!iso || Number.isNaN(then.getTime())) return null;
+  const minutes = Math.floor((now.getTime() - then.getTime()) / 60_000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} h ago`;
+  return `${Math.floor(hours / 24)} d ago`;
+}
+
+/** Banner line: when the farm was last checked and when today's results last changed. */
+export function checkStatusText(checkedAt, rows, now = new Date()) {
+  const changedAt = rows.reduce((max, row) => (row.updated_at && row.updated_at > max ? row.updated_at : max), '');
+  const checked = timeAgo(checkedAt, now);
+  const changed = timeAgo(changedAt, now);
+  if (checked && changed) return `Checked ${checked} · last change ${changed}`;
+  if (checked) return `Checked ${checked}`;
+  if (changed) return `Last change ${changed}`;
+  return '';
+}

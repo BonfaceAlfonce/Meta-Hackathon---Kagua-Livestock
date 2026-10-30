@@ -381,6 +381,14 @@ async function explainRegionalSignals(admin: SupabaseClient, changed: RegionalCo
   }
 }
 
+/** Records when the farm was last checked. Best effort: a failure here must not fail the check itself. */
+async function recordCheck(admin: SupabaseClient, farmId: string, mode: 'scheduled' | 'user') {
+  const { error } = await admin
+    .from('outbreak_farm_checks')
+    .upsert({ farm_id: farmId, last_checked_at: new Date().toISOString(), last_mode: mode }, { onConflict: 'farm_id' });
+  if (error) console.warn(`outbreak-shield: could not record check time for farm ${farmId}: ${error.message}`);
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS_HEADERS });
   if (req.method !== 'POST') return json(405, { error: 'Use POST.' });
@@ -418,6 +426,7 @@ Deno.serve(async (req) => {
         rows.forEach((r) => riskCounts[r.risk_level]++);
         if (rows.some((r) => r.is_spreading)) spreadingFarms++;
         await explainAssessments(admin, changed, zoneNames, apiKey, budget);
+        await recordCheck(admin, farm.id, allowedFarmIds ? 'user' : 'scheduled');
       } catch (error) {
         console.error(`outbreak-shield: farm ${farm.id} failed`, error);
         failedFarms.push(farm.id);

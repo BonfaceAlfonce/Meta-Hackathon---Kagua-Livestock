@@ -44,6 +44,7 @@
 .os-status-copy { flex: 1; min-width: 0; }
 .os-status-copy h2 { font: 700 17px Manrope, sans-serif; color: #2f3e35; margin: 5px 0 4px; }
 .os-status-copy p { font-size: 11px; line-height: 1.55; color: #6d7a71; margin: 0; }
+.os-status-meta { display: inline-flex; align-items: center; gap: 5px; margin-top: 6px; font-size: 10px; color: #8b968e; }
 .os-run { flex: none; height: 38px; padding: 0 15px; font-size: 11px; }
 .os-run:disabled { opacity: .65; cursor: wait; }
 .os-spin { animation: spin .8s linear infinite; }
