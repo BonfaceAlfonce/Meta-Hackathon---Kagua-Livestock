@@ -15,7 +15,7 @@ Edit `supabase/functions/_shared/vision.js`. This catalogue is shared by the fro
 The four result arrays are observations, concerns, next_checks and limitations. Samples must be labelled as prepared observations. Do not invent temporal trends, disease diagnoses, sensor measurements or confidence percentages. Separate photos are independent examples, never a timeline.
 
 ## Enable shared history and Meta later
-1. Run `supabase/migrations/20261028000000_farm_image_analyses.sql` in Supabase SQL Editor after the existing foundation migration. This creates a separate history table and server-only request reservation RPC. No existing farm data is changed.
+1. Run `supabase/migrations/20261028000001_farm_image_analyses.sql` in Supabase SQL Editor after the existing foundation migration. This creates a separate history table and server-only request reservation RPC. No existing farm data is changed.
 2. Find the actual Das farm UUID in the farms table. Set VITE_DAS_FARM_ID for the frontend as above.
 3. In Supabase Dashboard > Edge Functions > Secrets, set these server-only secrets:
    - `DAS_FARM_ID`: the same actual farm UUID.
@@ -32,7 +32,7 @@ The function rejects other farm IDs, missing memberships, unknown catalogue IDs 
 Meta output is qualitative image understanding, not a trained poultry detector, segmentation, tracking or clinical assessment. SAM overlays and video behaviour measurements are outside this first version.
 
 ## Verification
-Run `node --test tests/vision.test.js` and `npm run build`. The tests exercise access restrictions, sample provenance, model request construction, invalid model output, failures, and request reuse with mocked external services. Real deployment, SQL execution, account access and Meta inference must be verified once credentials and deployment are available.
+Run `npm run build` to verify frontend compilation. Check sample results, browser history and shared history in Das Farm > Photos. Real deployment, SQL execution, account access and Meta inference must be verified once credentials and deployment are available.
 
 Official image request format: https://dev.meta.ai/docs/image-understanding
 

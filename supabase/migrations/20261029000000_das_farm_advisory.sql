@@ -1,4 +1,4 @@
--- Additive advisory support. Run AFTER 20261028000000_farm_image_analyses.sql.
+-- Additive advisory support. Run AFTER 20261028000001_farm_image_analyses.sql.
 begin;
 alter table public.farm_image_analyses add column if not exists advisory_key text;
 alter table public.farm_image_analyses add column if not exists advisory jsonb;

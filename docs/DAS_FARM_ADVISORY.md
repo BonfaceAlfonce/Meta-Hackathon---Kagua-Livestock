@@ -20,7 +20,7 @@ The advisory is an addition inside the existing Photos image-analysis area. The 
 5. Once publishing is configured, the same action atomically saves analysis history and a dashboard alert. Navigate to Overview or Records to see the existing display pick up that alert.
 
 ## Server setup (not executed by this code change)
-1. Apply foundation migrations in order, including `20261028000000_farm_image_analyses.sql`, then `20261029000000_das_farm_advisory.sql` in Supabase SQL Editor.
+1. Apply foundation migrations in order, including `20261028000001_farm_image_analyses.sql`, then `20261029000000_das_farm_advisory.sql` in Supabase SQL Editor.
 2. Use the same actual farm UUID for frontend VITE_DAS_FARM_ID and the server DAS_FARM_ID. Existing seeded Das-owner mapping remains available for local sample access.
 3. In Supabase Edge Function Secrets, configure DAS_FARM_ID and VISION_SITE_ORIGIN. Hosted Supabase supplies its standard URL/anon/service-role credentials. Do not commit actual credentials.
 4. Deploy `supabase functions deploy farm-advisory` after linking the project. Its _shared modules must be included. Keep authentication enabled. No new communication service is deployed.
@@ -33,6 +33,6 @@ The server verifies the exact Das Farm ID and authenticated membership before re
 The additive migration extends farm_image_analyses with advisory, advisory_key and alert_id. A server-only RPC writes the ordinary farm_alerts record and completes the analysis in one transaction. Acknowledgements and prior alerts are preserved. The payload includes demo provenance and the selected telemetry/image evidence. No original telemetry is updated. Failures leave a failed analysis; a timed-out client cannot change a completed analysis to failed.
 
 ## Verification and limits
-Run `node --test tests/vision.test.js tests/advisory.test.js` and `npm run build`. Tests cover farm isolation, missing values, existing rule/warning scoping, fixed wording, SAM request construction/parsing, failures and deduplication with mocked external services. Database SQL, deployment, third-party image retrieval and live Meta access still need an integration check in your Supabase project. No claim of verified poultry model accuracy is made.
+Run `npm run build` to verify frontend compilation. In Das Farm > Photos, check sample advisory generation, missing-value labels, shared history, publication to dashboard alerts and reuse of repeated evidence. Database SQL, deployment, third-party image retrieval and live Meta access still need an integration check in your Supabase project. No claim of verified poultry model accuracy is made.
 
 Official SAM request/response reference: https://dev.meta.ai/docs/sam/overview

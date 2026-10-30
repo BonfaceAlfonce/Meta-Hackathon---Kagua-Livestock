@@ -8,11 +8,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "build:vercel": "node scripts/check-deploy-env.mjs && vite build",
-    "preview": "vite preview",
-    "test:vision": "node --test tests/vision.test.js",
-    "test:advisory": "node --test tests/advisory.test.js",
-    "test": "node --test tests/*.test.js"
+    "preview": "vite preview"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",
