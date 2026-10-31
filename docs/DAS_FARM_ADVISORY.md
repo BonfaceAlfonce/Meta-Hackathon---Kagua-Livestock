@@ -20,7 +20,7 @@ The advisory is an addition inside the existing Photos image-analysis area. The 
 5. Once publishing is configured, the same action atomically saves analysis history and a dashboard alert. Navigate to Overview or Records to see the existing display pick up that alert.
 
 ## Server setup (not executed by this code change)
-1. Apply foundation migrations in order, including `20261028000001_farm_image_analyses.sql`, then `20261029000000_das_farm_advisory.sql` in Supabase SQL Editor.
+1. Apply foundation migrations in order, including `20261028000001_farm_image_analyses.sql`, then `20261029000001_das_farm_advisory.sql` in Supabase SQL Editor.
 2. Use the same actual farm UUID for frontend VITE_DAS_FARM_ID and the server DAS_FARM_ID. Existing seeded Das-owner mapping remains available for local sample access.
 3. In Supabase Edge Function Secrets, configure DAS_FARM_ID and VISION_SITE_ORIGIN. Hosted Supabase supplies its standard URL/anon/service-role credentials. Do not commit actual credentials.
 4. Deploy `supabase functions deploy farm-advisory` after linking the project. Its _shared modules must be included. Keep authentication enabled. No new communication service is deployed.

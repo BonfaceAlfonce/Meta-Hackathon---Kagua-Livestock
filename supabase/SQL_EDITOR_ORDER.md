@@ -88,9 +88,11 @@ Run the **entire** file `update_farm_locations_and_demo_photos.sql` to place Jea
 After the foundation and manual-submission migrations, run these entire files in order:
 
 1. `migrations/20261028000001_farm_image_analyses.sql`
-2. `migrations/20261029000000_das_farm_advisory.sql`
+2. `migrations/20261029000001_das_farm_advisory.sql`
 
 The vision migration was renamed from `20261028000000_farm_image_analyses.sql` during integration because main already uses version `20261028000000` for manual submissions. Its SQL is unchanged. Both migrations now have unique versions.
+
+The advisory migration was also renamed from `20261029000000_das_farm_advisory.sql` to `20261029000001_das_farm_advisory.sql` because main uses version `20261029000000` for the Outbreak Shield schedule. Its SQL is unchanged, and existing advisory data is retained. If the old file was applied through SQL Editor, the renamed file is safe to reapply. If the old version was recorded by the CLI, inspect migration history and actual database objects before `db push`; have the database administrator reconcile the recorded versions rather than resetting data or blindly marking migrations applied.
 
 If you previously ran the old vision file through SQL Editor, its tables and reservation function already exist; the renamed file is safe to reapply. Existing advisory history is retained. Apply any missing manual-submission/advisory migration as well. Do not rerun demo seeds on a populated farm.
 
@@ -99,3 +101,21 @@ If you previously used the Supabase CLI to apply either migration at version `20
 Deploy `analyse-farm-image` and `farm-advisory` separately from the frontend, with the configuration in `../docs/DAS_FARM_VISION.md` and `../docs/DAS_FARM_ADVISORY.md`. Main's manual photo check uses a separate function, `analyze-photo`, and its own `AI_API_URL`, `AI_API_KEY`, and `AI_MODEL` configuration. The advisory's `META_*` settings do not configure that function.
 
 The advisory keeps its existing four inputs (temperature, humidity, ammonia, ground moisture). Main's CO₂ display and manual form remain available, but CO₂ is not added to advisory rules. Advisory processing still requires a zone-linked reading; a manual entry saved at "Farm level" remains visible in the dashboard but is not eligible for this advisory. Select an existing zone in the manual form to make that reading eligible. A missing ground-moisture measurement is shown as unavailable.
+
+## Outbreak Shield (run after the files above)
+
+Run each file in full, in this order: `migrations/20261028120000_outbreak_shield.sql`, `migrations/20261029000000_outbreak_shield_schedule.sql`, `migrations/20261030000000_outbreak_farm_checks.sql`. Then set the function secrets, deploy `outbreak-shield`, and add the two Vault secrets; see the Outbreak Shield section of the README.
+
+## Combined migration order
+
+For a fresh project or CLI deployment, the full migration sequence is:
+
+1. `20261026000000_farm_monitoring_schema.sql`
+2. `20261028000000_farmer_manual_submissions.sql`
+3. `20261028000001_farm_image_analyses.sql`
+4. `20261028120000_outbreak_shield.sql`
+5. `20261029000000_outbreak_shield_schedule.sql`
+6. `20261029000001_das_farm_advisory.sql`
+7. `20261030000000_outbreak_farm_checks.sql`
+
+For an existing project, apply only missing migrations after checking the migration-history notes above. Demo seeds are optional setup data, not deployment migrations.
