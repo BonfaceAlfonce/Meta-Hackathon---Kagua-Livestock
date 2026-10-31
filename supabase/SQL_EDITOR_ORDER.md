@@ -82,3 +82,7 @@ After the base migration above, run the **entire** file `migrations/202610280000
 ## Demo farm locations and photos (data update)
 
 Run the **entire** file `update_farm_locations_and_demo_photos.sql` to place Jean Farm in Seattle, USA and Das Farm in India, and to repoint demo snapshots at verified poultry photos. Re-run the demo seed afterwards only on a fresh project; on a live project this update file is enough.
+
+## Outbreak Shield (run after the files above)
+
+Run each file in full, in this order: `migrations/20261028120000_outbreak_shield.sql`, `migrations/20261029000000_outbreak_shield_schedule.sql`, `migrations/20261030000000_outbreak_farm_checks.sql`. Then set the function secrets, deploy `outbreak-shield`, and add the two Vault secrets; see the Outbreak Shield section of the README.
