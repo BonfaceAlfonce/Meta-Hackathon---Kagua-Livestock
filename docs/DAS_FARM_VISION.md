@@ -1,13 +1,13 @@
-# Das Farm image analysis
+# Farm image analysis
 
 ## Presentation workflow (no Meta key or new Supabase deployment required)
-1. Sign into the existing seeded Das account and choose Das Farm.
+1. Sign in with any farm member account and choose one of its farms.
 2. Open Photos. The image investigation panel appears above the existing gallery.
 3. Choose an image and click **Show sample result**.
 4. Review observations, possible concerns, suggested checks and limitations.
 5. Reload and reopen an entry in Analysis history. Samples are stored per user and farm in this browser, with at most 20 entries. They are not ground captures or model results.
 
-The default account mapping uses the Das auth user UUID already in demo_seed_jean_das.sql and resolves its unique owned Das Farm to an ID. For other members or a differently seeded account, add `VITE_DAS_FARM_ID=<actual farm UUID>` to the existing local .env and your hosting environment, then rebuild. It is a public identifier, not a secret. Backend access always verifies the exact DAS_FARM_ID secret and authenticated membership; the UI check is not an authorization boundary.
+The image-analysis and advisory panels are available on Photos for every selected farm. The backend accepts the selected farm UUID only after verifying the signed-in user's membership. Shared history is scoped to that farm; browser history is scoped to the farm and user. Switching farms resets the panels. DAS_FARM_ID and VITE_DAS_FARM_ID are not required for feature access. The existing Das-specific gallery fallback is retained separately, including its optional legacy frontend setting; it does not control panel visibility or backend access.
 
 ## Add your images later
 Edit `supabase/functions/_shared/vision.js`. This catalogue is shared by the frontend and function. Place your files in `public/images/`, register a unique ID, revision, path, title, zone, original source URL, attribution and manually reviewed sample result. Increment revision when replacing an asset or sample. Rebuild the website and redeploy the function after catalogue changes. Files in public are publicly accessible. Two existing project images are registered as placeholders; their original attribution is still pending.
@@ -16,9 +16,8 @@ The four result arrays are observations, concerns, next_checks and limitations. 
 
 ## Enable shared history and Meta later
 1. Run `supabase/migrations/20261028000001_farm_image_analyses.sql` in Supabase SQL Editor after the existing foundation migration. This creates a separate history table and server-only request reservation RPC. No existing farm data is changed.
-2. Find the actual Das farm UUID in the farms table. Set VITE_DAS_FARM_ID for the frontend as above.
+2. Confirm that users have farm_members entries for each farm they should access. The frontend sends the selected farm UUID; no farm allowlist secret is required.
 3. In Supabase Dashboard > Edge Functions > Secrets, set these server-only secrets:
-   - `DAS_FARM_ID`: the same actual farm UUID.
    - `VISION_SITE_ORIGIN`: the deployed HTTPS website origin, e.g. https://your-site.example (no subpath or trailing slash). Only that browser origin is accepted. The reference paths must be publicly reachable at this origin.
    - `META_API_KEY`: your valid Meta key. Leave unset until available.
    - `META_VISION_MODEL`: an image-capable model your account can access, e.g. muse-spark-1.3.
@@ -27,14 +26,14 @@ The four result arrays are observations, concerns, next_checks and limitations. 
 5. Use **Save sample to farm history** to test shared persistence without a Meta key. Use **Load shared history** to retrieve the most recent 20 completed entries.
 6. When the Meta key is configured, select **Meta · actual image analysis** and click **Analyse with Meta**. The backend sends only the registered image from the configured website to https://api.meta.ai/v1/chat/completions. It validates the response and saves it before returning.
 
-The function rejects other farm IDs, missing memberships, unknown catalogue IDs and invalid requests before model calls. The browser cannot supply arbitrary image URLs or sample findings. The database allows members to read history; only the function can write it. Requests are idempotent by UUID and limited to ten reservations per farm per minute, including failed attempts. Model requests time out after 45 seconds. Failed inference never falls back to sample output.
+The function rejects invalid farm IDs, missing memberships, unknown catalogue IDs and invalid requests before model calls. Each query and reservation uses the authorized selected farm. The browser cannot supply arbitrary image URLs or sample findings. The database allows members to read history; only the function can write it. Requests are idempotent by UUID and limited to ten reservations per farm per minute, including failed attempts. Model requests time out after 45 seconds. Failed inference never falls back to sample output.
 
 Meta output is qualitative image understanding, not a trained poultry detector, segmentation, tracking or clinical assessment. SAM overlays and video behaviour measurements are outside this first version.
 
 ## Verification
-Run `npm run build` to verify frontend compilation. Check sample results, browser history and shared history in Das Farm > Photos. Real deployment, SQL execution, account access and Meta inference must be verified once credentials and deployment are available.
+Run `npm run build` to verify frontend compilation. Check sample results, browser history and shared history in the selected farm > Photos. Real deployment, SQL execution, account access and Meta inference must be verified once credentials and deployment are available.
 
 Official image request format: https://dev.meta.ai/docs/image-understanding
 
 ## Additional two-image environmental advisory
-The separate Farm advisory panel now appears above the individual image-analysis controls on Photos. It uses the first two owner-supplied gallery URLs and existing Das Farm telemetry. Original image-analysis features are retained. See `docs/DAS_FARM_ADVISORY.md` for the additive migration, separate farm-advisory function, SAM configuration and publishing to the existing dashboard alerts. WhatsApp and all other communication code are unchanged.
+The separate Farm advisory panel now appears above the individual image-analysis controls on Photos. It uses the first two owner-supplied gallery URLs and existing telemetry from the selected farm. Original image-analysis features are retained. See `DAS_FARM_ADVISORY.md` for the additive migration, separate farm-advisory function, SAM configuration and publishing to the existing dashboard alerts. WhatsApp and all other communication code are unchanged.

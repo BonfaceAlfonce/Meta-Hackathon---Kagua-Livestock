@@ -8,18 +8,18 @@ export function createAdvisoryHandler({ env, createClient, fetchImpl = fetch }) 
     if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers });
     if (req.method !== 'POST') return respond({ error: 'Use POST.' }, 405);
     if (req.headers.get('origin') && req.headers.get('origin') !== origin) return respond({ error: 'Website origin is not allowed.' }, 403);
-    if (!req.headers.get('authorization')?.startsWith('Bearer ')) return respond({ error: 'Sign in to Das Farm.' }, 401);
-    const farmId = env('DAS_FARM_ID');
-    if (!validId(farmId) || !env('SUPABASE_URL') || !env('SUPABASE_ANON_KEY') || !env('SUPABASE_SERVICE_ROLE_KEY')) return respond({ error: 'Configure the advisory function and Das Farm ID in server secrets.' }, 503);
+    if (!req.headers.get('authorization')?.startsWith('Bearer ')) return respond({ error: 'Sign in to your farm.' }, 401);
+    if (!env('SUPABASE_URL') || !env('SUPABASE_ANON_KEY') || !env('SUPABASE_SERVICE_ROLE_KEY')) return respond({ error: 'Configure the advisory function server credentials.' }, 503);
     const client = createClient(env('SUPABASE_URL'), env('SUPABASE_ANON_KEY'), { global: { headers: { Authorization: req.headers.get('authorization') } }, auth: { persistSession: false } });
     const { data: auth, error: authError } = await client.auth.getUser();
     if (authError || !auth?.user) return respond({ error: 'Your session has expired.' }, 401);
     let body;
     try { const raw = await req.text(); if (raw.length > 4096) return respond({ error: 'Request too large.' }, 413); body = JSON.parse(raw); }
     catch { return respond({ error: 'Invalid request.' }, 400); }
-    if (body?.farm_id !== farmId) return respond({ error: 'Advisory is enabled for Das Farm only.' }, 403);
+    const farmId = body?.farm_id;
+    if (typeof farmId !== 'string' || !validId(farmId)) return respond({ error: 'Select a valid farm.' }, 400);
     const { data: membership, error: membershipError } = await client.from('farm_members').select('farm_id').eq('farm_id', farmId).eq('user_id', auth.user.id).maybeSingle();
-    if (membershipError || !membership) return respond({ error: 'You do not have access to Das Farm.' }, 403);
+    if (membershipError || !membership) return respond({ error: 'You do not have access to this farm.' }, 403);
     if (!validId(body.telemetry_event_id) || !validId(body.request_id) || !['sample','meta'].includes(body.mode)) return respond({ error: 'Select a telemetry record and analysis mode.' }, 400);
     if (body.mode === 'meta' && !env('META_API_KEY')) return respond({ error: 'SAM is awaiting the server-side Meta API key. Select sample mode explicitly for a prepared demonstration.' }, 503);
     const { data: row, error: readingError } = await client.from('telemetry_events').select(telemetrySelect).eq('farm_id', farmId).eq('id', body.telemetry_event_id).maybeSingle();
@@ -46,7 +46,7 @@ export function createAdvisoryHandler({ env, createClient, fetchImpl = fetch }) 
       const { error: recoveryError } = await admin.from('farm_image_analyses').update({ status: 'failed', advisory_key: null }).eq('id', cached.id).eq('status', 'pending');
       if (recoveryError) return respond({ error: 'Could not recover the previous request. Please try later.' }, 503);
     }
-    const { error: reservationError } = await admin.rpc('reserve_farm_image_analysis', { p_id: body.request_id, p_farm_id: farmId, p_user_id: auth.user.id, p_image_id: advisoryImageId, p_image_title: 'Das Farm · two-image advisory', p_image_path: advisoryFeeds[0].url, p_revision: 1, p_mode: body.mode, p_model: model });
+    const { error: reservationError } = await admin.rpc('reserve_farm_image_analysis', { p_id: body.request_id, p_farm_id: farmId, p_user_id: auth.user.id, p_image_id: advisoryImageId, p_image_title: 'Farm · two-image advisory', p_image_path: advisoryFeeds[0].url, p_revision: 1, p_mode: body.mode, p_model: model });
     if (reservationError) return respond({ error: 'Request is already reserved or the farm request limit was reached. Load history before retrying.' }, 429);
     const { error: keyError } = await admin.from('farm_image_analyses').update({ advisory_key: key }).eq('id', body.request_id);
     if (keyError) {

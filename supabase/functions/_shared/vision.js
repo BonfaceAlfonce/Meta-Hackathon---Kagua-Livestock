@@ -2,7 +2,7 @@
 export const catalogue = [
   {
     id: 'das-chicks', revision: 1, title: 'Chicks on open ground',
-    path: '/images/chicks-free-range.jpg', zone: 'Das demonstration area',
+    path: '/images/chicks-free-range.jpg', zone: 'Demonstration area',
     credit: 'Existing project reference photo; original attribution pending', sourceUrl: null,
     sample: {
       observations: ['Several chicks are visible on bare ground; the foreground chick is clearer than the background birds.', 'No feeder or drinker is clearly identifiable in this frame.'],
@@ -13,7 +13,7 @@ export const catalogue = [
   },
   {
     id: 'das-shelter', revision: 1, title: 'Flock beneath a shelter',
-    path: '/images/flock-house.jpg', zone: 'Das demonstration shelter',
+    path: '/images/flock-house.jpg', zone: 'Demonstration shelter',
     credit: 'Existing project reference photo; original attribution pending', sourceUrl: null,
     sample: {
       observations: ['Many white chickens are visible beneath a covered mesh-sided shelter.', 'Birds overlap, grass is visible, and parts of the image are out of focus.'],
