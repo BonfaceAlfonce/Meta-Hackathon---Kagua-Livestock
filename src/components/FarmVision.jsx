@@ -25,7 +25,7 @@ async function invoke(body) {
   if (data?.error) throw new Error(data.error);
   return data;
 }
-export default function FarmVision({ farmId, userId }) {
+export default function FarmVision({ farmId, farmName, userId }) {
   const storageKey = `kagua-vision-v1:${userId}:${farmId}`;
   const [imageId, setImageId] = useState(catalogue[0].id);
   const [mode, setMode] = useState('sample');
@@ -82,11 +82,11 @@ export default function FarmVision({ farmId, userId }) {
     finally { lock.current = false; if (mounted.current) setBusy(false); }
   }
   function changeImage(id) { setImageId(id); setRecord(null); setError(''); setNotice(''); setImageError(false); }
-  return <><FarmAdvisory key={`${farmId}:${userId}`} farmId={farmId} userId={userId}/><section className="panel vision-panel" aria-labelledby="vision-heading">
-    <header className="vision-heading"><div><span className="eyebrow">DAS FARM · COMPUTER VISION</span><h2 id="vision-heading">A closer look at your flock</h2><p>Explore reference images and keep the evidence beside each finding.</p></div><span className="vision-badge"><FlaskConical size={14}/> Demo images</span></header>
+  return <><FarmAdvisory key={`${farmId}:${userId}`} farmId={farmId} farmName={farmName} userId={userId}/><section className="panel vision-panel" aria-labelledby="vision-heading">
+    <header className="vision-heading"><div><span className="eyebrow">{farmName || 'YOUR FARM'} · COMPUTER VISION</span><h2 id="vision-heading">A closer look at your flock</h2><p>Explore reference images and keep the evidence beside each finding.</p></div><span className="vision-badge"><FlaskConical size={14}/> Demo images</span></header>
     <div className="vision-layout"><div className="vision-evidence">
       <label htmlFor="vision-image">Reference image</label><select id="vision-image" disabled={busy} value={imageId} onChange={e => changeImage(e.target.value)}>{catalogue.map(x => <option key={x.id} value={x.id}>{x.title}</option>)}</select>
-      <div className="vision-image-wrap">{imageError ? <p role="alert">This image could not be loaded. Check its file path in the catalogue.</p> : <img src={record?.image_path || image.path} alt={record?.image_title || image.title} onError={() => setImageError(true)}/>}<span><Camera size={13}/> Reference photo · not a Das Farm capture</span></div>
+      <div className="vision-image-wrap">{imageError ? <p role="alert">This image could not be loaded. Check its file path in the catalogue.</p> : <img src={record?.image_path || image.path} alt={record?.image_title || image.title} onError={() => setImageError(true)}/>}<span><Camera size={13}/> Reference photo · not a farm camera capture</span></div>
       <strong>{image.zone}</strong><p className="vision-credit">{image.credit}{image.sourceUrl && <> · <a href={image.sourceUrl} target="_blank" rel="noreferrer">Original source</a></>}</p>
       <p className="vision-caption">Independent still image. It cannot establish movement, resource visits or changes over time.</p>
     </div><div className="vision-analysis">

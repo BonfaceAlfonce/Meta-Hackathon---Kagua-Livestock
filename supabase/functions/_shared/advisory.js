@@ -24,7 +24,7 @@ export function evaluateEvidence(row, rules = [], alerts = []) {
 }
 // Advisory wording is a closed template. No free-text model or alert message is interpolated.
 export function buildAdvisory(row, rules = [], alerts = [], visual = []) {
-  if (!row?.id || !row.farm_id || !row.zone_id) throw new Error('Select a zone-linked telemetry record from Das Farm.');
+  if (!row?.id || !row.farm_id || !row.zone_id) throw new Error('Select a zone-linked telemetry record from your farm.');
   const evidence = evaluateEvidence(row, rules, alerts);
   const readings = metrics.map(metric => `${metric.label}: ${evidence.values[metric.key] === null ? 'Unavailable' : `${evidence.values[metric.key]} ${metric.unit}`}`).join('; ');
   const flagged = evidence.checks.length > 0 || evidence.warning_ids.length > 0;
@@ -45,7 +45,7 @@ export function buildAdvisory(row, rules = [], alerts = [], visual = []) {
   const limitations = ['Demo/reference images and predefined telemetry; not verified ground evidence.', 'A still image cannot establish movement, feeding or drinking rates, changes over time, or environmental measurements.', 'Missing values remain unavailable. No additional sensor inputs or new thresholds were created.'];
   return { version: 1, telemetry_event_id: row.id, farm_id: row.farm_id, zone_id: row.zone_id, device_id: row.device_id, captured_at: row.captured_at,
     evidence, visual, feeds: advisoryFeeds, result: { observations, concerns, next_checks, limitations },
-    title: `DEMO · Das Farm environmental ${flagged ? 'review' : 'observations'}`,
+    title: `DEMO · Farm environmental ${flagged ? 'review' : 'observations'}`,
     message: `DEMO advisory. ${readings}. ${concerns[0]} ${next_checks.join(' ')}` };
 }
 export function parseSamBoxes(payload) {

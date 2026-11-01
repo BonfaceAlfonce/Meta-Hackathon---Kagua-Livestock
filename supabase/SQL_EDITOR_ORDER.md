@@ -83,7 +83,7 @@ After the base migration above, run the **entire** file `migrations/202610280000
 
 Run the **entire** file `update_farm_locations_and_demo_photos.sql` to place Jean Farm in Seattle, USA and Das Farm in India, and to repoint demo snapshots at verified poultry photos. Re-run the demo seed afterwards only on a fresh project; on a live project this update file is enough.
 
-## Das Farm vision and advisory
+## Farm vision and advisory
 
 After the foundation and manual-submission migrations, run these entire files in order:
 
@@ -119,3 +119,6 @@ For a fresh project or CLI deployment, the full migration sequence is:
 7. `20261030000000_outbreak_farm_checks.sql`
 
 For an existing project, apply only missing migrations after checking the migration-history notes above. Demo seeds are optional setup data, not deployment migrations.
+
+## Vision and advisory access across farms
+Photos now shows both panels for every selected member farm. Redeploy the frontend and both analyse-farm-image and farm-advisory functions to enable this on the hosted site. No extra migration is needed for this access update when the existing vision and advisory migrations are already applied. Configure VISION_SITE_ORIGIN and optional META_* model secrets as described in the feature guides. DAS_FARM_ID and VITE_DAS_FARM_ID are no longer required for feature access; existing server values do not restrict the updated handlers. Each user must still belong to the requested farm. Missing zone-linked readings must be supplied for that farm rather than copied from another farm.

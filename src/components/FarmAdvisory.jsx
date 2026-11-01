@@ -13,7 +13,7 @@ function loadLocal(key, farmId) {
     }).slice(0,10) : [];
   } catch { return []; }
 }
-export default function FarmAdvisory({ farmId, userId }) {
+export default function FarmAdvisory({ farmId, farmName, userId }) {
   const storageKey = `kagua-advisory-v1:${userId}:${farmId}`;
   const [context, setContext] = useState({ readings: [], rules: [], alerts: [], zones: [] });
   const [telemetryId, setTelemetryId] = useState('');
@@ -45,7 +45,7 @@ export default function FarmAdvisory({ farmId, userId }) {
         supabase.from('farm_zones').select('id,name').eq('farm_id',farmId)
       ]);
       if (!mounted.current) return;
-      if (responses.some(x => x.error)) throw new Error('Could not load the existing Das Farm readings, rules or warnings. Refresh to retry; no values will be substituted.');
+      if (responses.some(x => x.error)) throw new Error('Could not load the selected farm readings, rules or warnings. Refresh to retry; no values will be substituted.');
       const next = { readings: responses[0].data || [], rules: responses[1].data || [], alerts: responses[2].data || [], zones: responses[3].data || [] };
       setContext(next); setTelemetryId(next.readings[0]?.id || '');
     } catch (err) { if (mounted.current) { setContext({ readings: [], rules: [], alerts: [], zones: [] }); setTelemetryId(''); setError(err.message); } }
@@ -61,7 +61,7 @@ export default function FarmAdvisory({ farmId, userId }) {
   async function run() {
     if (lock.current) return;
     const reading = context.readings.find(x => x.id === telemetryId);
-    if (!reading) { setError('Select an existing Das Farm telemetry record first.'); return; }
+    if (!reading) { setError('Select an existing telemetry record from this farm first.'); return; }
     lock.current = true; setBusy(true); setError(''); setNotice('');
     let local = null;
     try {
@@ -70,7 +70,7 @@ export default function FarmAdvisory({ farmId, userId }) {
         const advisory = buildAdvisory(reading, context.rules, context.alerts, visual);
         const signature = JSON.stringify(advisory);
         local = history.find(x => x.mode === 'sample' && x.signature === signature) || {
-          id: crypto.randomUUID(), farm_id: farmId, image_id: advisoryImageId, image_title: 'Das Farm · two-image advisory',
+          id: crypto.randomUUID(), farm_id: farmId, image_id: advisoryImageId, image_title: 'Farm · two-image advisory',
           mode: 'sample', model: null, created_at: new Date().toISOString(), status: 'complete', result: advisory.result, advisory, signature
         };
         remember(local, local.shared || false);
@@ -113,10 +113,10 @@ export default function FarmAdvisory({ farmId, userId }) {
   const shown = record?.advisory || preview;
   const zoneName = id => context.zones.find(x => x.id === id)?.name || `Zone ${id?.slice(0,8) || 'unavailable'}`;
   return <section className="panel vision-panel advisory-panel" aria-labelledby="advisory-heading">
-    <header className="vision-heading"><div><span className="eyebrow">DAS FARM · ENVIRONMENT & CAMERA CONTEXT</span><h2 id="advisory-heading">Farm advisory</h2><p>Two simulated feed images, paired with an existing Das Farm reading.</p></div><span className="vision-badge"><ShieldCheck size={14}/> Observations & inspection checks</span></header>
+    <header className="vision-heading"><div><span className="eyebrow">{farmName || 'YOUR FARM'} · ENVIRONMENT & CAMERA CONTEXT</span><h2 id="advisory-heading">Farm advisory</h2><p>Two simulated feed images, paired with an existing reading from this farm.</p></div><span className="vision-badge"><ShieldCheck size={14}/> Observations & inspection checks</span></header>
     <div className="advisory-feeds">{advisoryFeeds.map(feed => <figure key={feed.id}><img src={feed.url} alt={`${feed.title}: owner-supplied poultry reference`} onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement.querySelector('.advisory-image-error').hidden = false; }}/><p className="advisory-image-error" hidden>Reference image unavailable. No visual finding can be confirmed.</p><figcaption><Camera size={13}/>{feed.title} · demo reference</figcaption></figure>)}</div>
     <p className="vision-caption">These are independent reference images, paired for the demo; they are not a timeline or synchronized farm captures. The third gallery image remains a reference.</p>
-    <div className="advisory-controls"><div><label htmlFor="advisory-reading">Existing Das Farm telemetry</label><select id="advisory-reading" disabled={busy || loading || !context.readings.length} value={telemetryId} onChange={e => { setTelemetryId(e.target.value); setRecord(null); setNotice(''); setError(''); }}>{!context.readings.length && <option value="">{loading ? 'Loading existing readings…' : 'No zone-linked readings available'}</option>}{!telemetryId && context.readings.length > 0 && <option value="">Choose a current record</option>}{context.readings.map(row => <option key={row.id} value={row.id}>{zoneName(row.zone_id)} · {when(row.captured_at)}</option>)}</select></div><div><label htmlFor="advisory-mode">Visual processing</label><select id="advisory-mode" disabled={busy || loading} value={mode} onChange={e => { setMode(e.target.value); setRecord(null); setNotice(''); setError(''); }}><option value="sample">Prepared sample · no SAM inference</option><option value="meta">Meta SAM · actual segmentation</option></select></div></div>
+    <div className="advisory-controls"><div><label htmlFor="advisory-reading">Existing farm telemetry</label><select id="advisory-reading" disabled={busy || loading || !context.readings.length} value={telemetryId} onChange={e => { setTelemetryId(e.target.value); setRecord(null); setNotice(''); setError(''); }}>{!context.readings.length && <option value="">{loading ? 'Loading existing readings…' : 'No zone-linked readings available'}</option>}{!telemetryId && context.readings.length > 0 && <option value="">Choose a current record</option>}{context.readings.map(row => <option key={row.id} value={row.id}>{zoneName(row.zone_id)} · {when(row.captured_at)}</option>)}</select></div><div><label htmlFor="advisory-mode">Visual processing</label><select id="advisory-mode" disabled={busy || loading} value={mode} onChange={e => { setMode(e.target.value); setRecord(null); setNotice(''); setError(''); }}><option value="sample">Prepared sample · no SAM inference</option><option value="meta">Meta SAM · actual segmentation</option></select></div></div>
     {shown && <><p className="vision-caption">{record ? 'Saved evidence' : 'Selected evidence'} · {zoneName(shown.zone_id)} · recorded {when(shown.captured_at)}</p><div className="advisory-readings">{metrics.map(metric => <div key={metric.key}><span>{metric.label}</span><strong>{shown.evidence.values[metric.key] === null ? 'Unavailable' : `${shown.evidence.values[metric.key]} ${metric.unit}`}</strong></div>)}</div></>}
     <div className="advisory-actions"><button className="primary-button vision-run" disabled={busy || loading || !reading} onClick={run}>{busy ? 'Processing…' : mode === 'sample' ? 'Run sample advisory' : 'Run SAM advisory'}</button><button className="outline-button" disabled={busy || loading} onClick={refresh}>Refresh readings</button></div>
     <p className="vision-caption">Sample mode uses prepared visual context and the displayed database values. SAM mode requires server configuration. Neither mode generates medical recommendations.</p>
