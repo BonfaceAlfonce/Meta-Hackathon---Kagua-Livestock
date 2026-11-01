@@ -1,43 +1,100 @@
-# Farm environmental advisory
+# Farm advisory
 
-## Scope
-The advisory is an addition inside the existing Photos image-analysis area. The existing gallery, individual image analysis, sample history, all other tabs and all WhatsApp/communication code remain intact. A completed advisory is published as an ordinary farm_alerts row. The existing Overview/Records subscriptions display that row without any UI changes to those tabs. No messaging provider or communication preference is touched.
+Real-data flock advisory. A completed advisory is published as an ordinary
+farm_alerts row, so the existing Overview/Records/Alerts displays pick it up
+without changes. No messaging provider or communication preference is touched.
 
 ## Inputs and behaviour
-- `supabase/functions/_shared/demo-images.js` holds the same three owner-supplied image URLs, in their original order. The first two are registered as simulated advisory feed inputs. The third remains in the gallery. They are independent images, not temporal frames.
-- Select a zone-linked telemetry record from the selected farm in the advisory. The default is the latest available record. Temperature, humidity, ammonia and `measurements.ground_moisture_pct` are the only environmental inputs; there are no new sensor values, thresholds or substituted defaults. Zero is preserved; missing/non-numeric values show Unavailable.
-- Applicable enabled rules from alert_rules and recognized existing environmental alerts tied to that exact record supply the risk flag and severity. Unrelated zones, other farms, resolved alerts and previous advisories are excluded. Existing alert messages and titles are not copied into advisory wording.
-- The two images are explicitly paired to the selected zone/record for demonstration, not asserted to be synchronized captures. A still does not establish movement, intake, disease, water flow or changes over time.
-- Sample mode uses prepared visual-context statements and existing database readings. It runs without a Meta key. No segmentation, visual condition or bird count is fabricated. The result is saved in this browser and publication to the backend is attempted. Failed publication is clearly labelled browser-only and does not claim an Overview update.
-- SAM mode makes one non-streaming Meta Responses API request per registered image, using the concept chicken and META_SAM_MODEL (default sam-3.1). The documented segmentation token output is validated into bounding-box regions. No model-written medical text enters the advisory. A zero-match result is valid and does not prove birds are absent. The prototype stores candidate boxes, not decoded masks or tracking. A failure of either image prevents publishing the combined result; it never falls back silently to samples.
-- Both modes use a closed set of environmental inspection templates, with recorded readings and provenance. The advisory contains observations, risk flags, inspection checks and contact-your-vet escalation. It generates no disease names, diagnoses, medicines, vaccine recommendations or treatment instructions.
+
+- Select a zone-linked telemetry record from the selected farm. The default is
+  the latest available record; a zone filter traces records per zone.
+  Temperature, humidity, ammonia and `measurements.co2_ppm` are the only
+  environmental inputs. Zero is preserved; missing values stay unavailable.
+- The server pairs the record with the farm's own camera photo: first the
+  snapshot linked to that telemetry event, otherwise the latest snapshot in
+  the same zone. No photo is ever invented; without one the advisory is a
+  labelled readings-only result.
+- SAM 3.1 (`META_SAM_MODEL`, default `sam-3.1`) segments candidate chicken
+  regions in the photo over the Meta Responses API. The documented
+  segmentation token output is validated into bounding boxes. Masks are not
+  decoded; regions are supporting evidence, never a verified flock count.
+- Muse Spark vision (`META_VISION_MODEL`, default `muse-spark-1.3`) reads the
+  same photo over Chat Completions with a strict JSON schema: visible chicken
+  distribution across feeders, brooders and free-roam areas, behaviour flags,
+  and the four advisory sections plus a `normal`/`attention` verdict combined
+  with the readings.
+- Applicable enabled alert_rules and recognized existing environmental alerts
+  tied to that exact record supply the risk flag and severity. Unrelated
+  zones, other farms, resolved alerts and previous advisories are excluded.
+- Every model output passes validation in code, including a guardrail that
+  rejects disease, pathogen and treatment wording. A failed or rejected model
+  call degrades to a labelled template (readings plus whatever stage did
+  succeed); it never invents visual findings. The result records which stages
+  ran (`ok`, `skipped`, or the failure reason).
+- The advisory generates no disease names, diagnoses, medicines, vaccine
+  recommendations or treatment instructions.
 
 ## Use locally
-1. Sign in as any farm member, open the selected farm > Photos, and find Farm advisory above the previous image-analysis panel.
-2. Select an existing telemetry record. If the reading/rule/warning query fails, retry Refresh readings. No fabricated telemetry is used.
-3. Choose Prepared sample and click Run sample advisory. Review the recorded values, observation provenance, checks and evidence limits.
-4. If the service is not deployed, the result remains available here with a clear publication error. Browser history retains ten advisories per user/farm. Existing individual image-analysis history is unchanged and filters out paired advisory entries.
-5. Once publishing is configured, the same action atomically saves analysis history and a dashboard alert. Navigate to Overview or Records to see the existing display pick up that alert.
+
+1. Sign in as any farm member and choose one of its farms.
+2. Submit real data from Fill out data: pick a zone (not "Farm level"), enter
+   readings, attach a photo, then Submit.
+3. Open Farm Advisory (under Outbreak Shield). The latest record is preselected;
+   change the zone or record to trace another telemetry event.
+4. Click Run advisory. Review the verdict, flock distribution, observations,
+   risk flags, inspection checks and evidence limits.
+5. Open Alerts or Records to see the published advisory alert. Photos shows
+   only the farm's photos; each photo links back to its advisory.
 
 ## Server setup (not executed by this code change)
-1. Apply foundation migrations in order, including `20261028000001_farm_image_analyses.sql`, then `20261029000001_das_farm_advisory.sql` in Supabase SQL Editor.
-2. Confirm farm membership and existing zone-linked telemetry for each farm. No DAS_FARM_ID or VITE_DAS_FARM_ID configuration is required for advisory access.
-3. In Supabase Edge Function Secrets, configure VISION_SITE_ORIGIN. Hosted Supabase supplies its standard URL/anon/service-role credentials. Do not commit actual credentials.
-4. Deploy `supabase functions deploy farm-advisory` after linking the project. Its _shared modules must be included. Keep authentication enabled. No new communication service is deployed.
-5. Sample publication works without a Meta key. To enable actual segmentation, set META_API_KEY and optionally META_SAM_MODEL=sam-3.1. The old META_VISION_MODEL setting remains in use by individual image analysis, not this SAM endpoint.
-6. Both image URLs must be reachable by Meta; a failed or inaccessible URL is an inference error, not a successful sample. Third-party thumbnail URLs may need replacement later.
+
+1. Apply foundation migrations in order, including
+   `20261028000001_farm_image_analyses.sql`,
+   `20261029000001_das_farm_advisory.sql`, then
+   `20261101000000_farm_advisory_real_data.sql` in Supabase SQL Editor.
+2. Confirm farm membership and existing zone-linked telemetry for each farm.
+3. In Supabase Dashboard > Edge Functions > Secrets, set the server-only
+   secrets from `supabase/functions/vision-secrets.example`:
+   - `VISION_SITE_ORIGIN`: this app's origin, e.g. `http://localhost:5173`
+     for local testing or the deployed HTTPS origin (no subpath or slash).
+   - `META_API_KEY`: your Meta Model API key. Required.
+   - `META_VISION_MODEL` (default `muse-spark-1.3`) and
+     `META_SAM_MODEL` (default `sam-3.1`).
+   Standard SUPABASE_URL, SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY are
+   provided by hosted Supabase functions. Never place service or Meta keys in
+   VITE variables or GitHub.
+4. Deploy from this project after linking it, keeping JWT verification on:
+   `supabase functions deploy farm-advisory`. Its `_shared` modules deploy
+   with it. If the retired `analyse-farm-image` or `analyze-photo` functions
+   were ever deployed, delete them from the dashboard; nothing calls them now.
+5. To clear demo rows so the app shows real data only, run the entire file
+   `supabase/cleanup_demo_data.sql` in the SQL Editor.
 
 ## Storage and access
-The server validates the selected farm UUID and verifies authenticated membership in that farm before retrieving telemetry, rules, warnings or invoking Meta. Client-supplied readings, model messages or image URLs are ignored. The hash of the selected record, values, applicable warning/rule IDs, configured model and registered feed revisions identifies completed evidence. Repeated evidence reuses the existing advisory without another SAM call or duplicate alert. Farm-wide request reservation limits are reused. Abandoned pending requests can recover after two minutes; active pending requests return a clear busy state.
 
-The additive migration extends farm_image_analyses with advisory, advisory_key and alert_id. A server-only RPC writes the ordinary farm_alerts record and completes the analysis in one transaction. Acknowledgements and prior alerts are preserved. The payload includes demo provenance and the selected telemetry/image evidence. No original telemetry is updated. Failures leave a failed analysis; a timed-out client cannot change a completed analysis to failed.
+The server validates the selected farm UUID and verifies authenticated
+membership before retrieving telemetry, rules, warnings, photos or invoking
+Meta. Client-supplied readings, model messages or image URLs are ignored. The
+hash of the selected record, values, snapshot, applicable warning/rule IDs and
+configured models identifies completed evidence. Repeated evidence reuses the
+existing advisory without another model call or duplicate alert. Farm-wide
+request reservation limits are reused. Abandoned pending requests can recover
+after two minutes; active pending requests return a clear busy state.
+
+The additive migrations extend farm_image_analyses with advisory, advisory_key
+and alert_id. A server-only RPC writes the ordinary farm_alerts record and
+completes the analysis in one transaction. Acknowledgements and prior alerts
+are preserved. No original telemetry is updated. Failures leave a failed
+analysis; a timed-out client cannot change a completed analysis to failed.
 
 ## Verification and limits
-Run `npm run build` to verify frontend compilation. In each selected farm > Photos, check sample advisory generation, missing-value labels, shared history, publication to dashboard alerts and reuse of repeated evidence. Database SQL, deployment, third-party image retrieval and live Meta access still need an integration check in your Supabase project. No claim of verified poultry model accuracy is made.
 
-Official SAM request/response reference: https://dev.meta.ai/docs/sam/overview
+Run `npm test` and `npm run build` to verify tests and frontend compilation.
+In each selected farm, check advisory generation on the latest Fill-out-data
+record, zone filtering, missing-value labels, shared history, publication to
+dashboard alerts and reuse of repeated evidence. Database SQL, deployment and
+live Meta access still need an integration check in your Supabase project with
+a real key. No claim of verified poultry model accuracy is made.
 
-## Availability across farms
-The same prepared reference images are available across farms and remain labelled as demo inputs. Environmental readings, rules, warnings, published alerts and shared history always belong to the selected authorized farm; Das Farm data is never substituted. All member roles can use these panels under the existing membership-based access model. A farm without zone-linked telemetry sees an empty state and cannot run an environmental advisory until eligible data exists. Individual preloaded image results remain available without telemetry.
-
-This update requires a frontend rebuild and redeployment of both analyse-farm-image and farm-advisory. No new migration is required; the existing history table, RLS and publication RPC already scope records by farm. Historical catalogue and advisory IDs containing das are retained to preserve saved history and deduplication. Existing saved titles remain unchanged. API keys stay in server secrets; real Meta access still requires a live integration check.
+Official references: https://dev.meta.ai/docs/sam/overview and
+https://dev.meta.ai/docs/image-understanding
