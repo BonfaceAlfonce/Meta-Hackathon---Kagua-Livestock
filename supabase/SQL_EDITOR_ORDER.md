@@ -83,12 +83,13 @@ After the base migration above, run the **entire** file `migrations/202610280000
 
 Run the **entire** file `update_farm_locations_and_demo_photos.sql` to place Jean Farm in Seattle, USA and Das Farm in India, and to repoint demo snapshots at verified poultry photos. Re-run the demo seed afterwards only on a fresh project; on a live project this update file is enough.
 
-## Farm vision and advisory
+## Farm Advisory
 
-After the foundation and manual-submission migrations, run these entire files in order:
+After the foundation and manual-submission migrations, run these entire files in order (all additive; existing history rows are kept):
 
 1. `migrations/20261028000001_farm_image_analyses.sql`
 2. `migrations/20261029000001_das_farm_advisory.sql`
+3. `migrations/20261101000000_farm_advisory_real_data.sql` (lets advisories publish against the farm's own photos instead of demo references)
 
 The vision migration was renamed from `20261028000000_farm_image_analyses.sql` during integration because main already uses version `20261028000000` for manual submissions. Its SQL is unchanged. Both migrations now have unique versions.
 
@@ -98,9 +99,9 @@ If you previously ran the old vision file through SQL Editor, its tables and res
 
 If you previously used the Supabase CLI to apply either migration at version `20261028000000`, inspect `supabase migration list` against the actual database objects before using `db push`. The old shared version alone cannot identify which migration ran. Reconcile the recorded versions with the database administrator; do not blindly repair history or reset the database.
 
-Deploy `analyse-farm-image` and `farm-advisory` separately from the frontend, with the configuration in `../docs/DAS_FARM_VISION.md` and `../docs/DAS_FARM_ADVISORY.md`. Main's manual photo check uses a separate function, `analyze-photo`, and its own `AI_API_URL`, `AI_API_KEY`, and `AI_MODEL` configuration. The advisory's `META_*` settings do not configure that function.
+Deploy `farm-advisory` separately from the frontend, with the configuration in `../docs/DAS_FARM_ADVISORY.md` and `../functions/vision-secrets.example`. The old `analyse-farm-image` and `analyze-photo` functions were removed; if either was ever deployed, it can be deleted from the dashboard.
 
-The advisory keeps its existing four inputs (temperature, humidity, ammonia, ground moisture). Main's CO₂ display and manual form remain available, but CO₂ is not added to advisory rules. Advisory processing still requires a zone-linked reading; a manual entry saved at "Farm level" remains visible in the dashboard but is not eligible for this advisory. Select an existing zone in the manual form to make that reading eligible. A missing ground-moisture measurement is shown as unavailable.
+The advisory uses the four real telemetry inputs (temperature, humidity, ammonia, CO₂ from `measurements`). Ground moisture was removed because Supabase has no such column. Advisory processing still requires a zone-linked reading; a manual entry saved at "Farm level" remains visible in the dashboard but is not eligible for this advisory, so select an existing zone in the manual form. Missing values are shown as unavailable, never invented.
 
 ## Outbreak Shield (run after the files above)
 
@@ -117,8 +118,9 @@ For a fresh project or CLI deployment, the full migration sequence is:
 5. `20261029000000_outbreak_shield_schedule.sql`
 6. `20261029000001_das_farm_advisory.sql`
 7. `20261030000000_outbreak_farm_checks.sql`
+8. `20261101000000_farm_advisory_real_data.sql`
 
-For an existing project, apply only missing migrations after checking the migration-history notes above. Demo seeds are optional setup data, not deployment migrations.
+For an existing project, apply only missing migrations after checking the migration-history notes above. Demo seeds are optional setup data, not deployment migrations. To remove demo rows so the app shows real farm data only, run the entire file `cleanup_demo_data.sql`.
 
-## Vision and advisory access across farms
-Photos now shows both panels for every selected member farm. Redeploy the frontend and both analyse-farm-image and farm-advisory functions to enable this on the hosted site. No extra migration is needed for this access update when the existing vision and advisory migrations are already applied. Configure VISION_SITE_ORIGIN and optional META_* model secrets as described in the feature guides. DAS_FARM_ID and VITE_DAS_FARM_ID are no longer required for feature access; existing server values do not restrict the updated handlers. Each user must still belong to the requested farm. Missing zone-linked readings must be supplied for that farm rather than copied from another farm.
+## Farm Advisory access across farms
+Farm Advisory is a nav section of its own (under Outbreak Shield) for every selected member farm, and Photos shows only that farm's Supabase photos. Redeploy the frontend and the farm-advisory and analyze-photo functions to enable this on the hosted site. No extra migration is needed beyond the real-data migration above. Configure VISION_SITE_ORIGIN and the META_* secrets as described in the feature guide. DAS_FARM_ID and VITE_DAS_FARM_ID are obsolete and can be removed wherever they were set. Each user must still belong to the requested farm. Missing zone-linked readings must be supplied for that farm rather than copied from another farm.

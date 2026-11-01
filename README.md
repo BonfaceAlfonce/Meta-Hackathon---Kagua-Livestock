@@ -43,8 +43,8 @@ To comply with the hackathon's *new work only* rule, work is clearly separated.
 ### 🚧 Built during the hackathon
 | Feature | Meta model | Status |
 |---|---|---|
-| AI analysis of sensor readings + camera snapshots | Muse Spark | Planned |
-| Flock behaviour detection (huddling, spreading, immobile birds) | SAM 3.1 + Muse Spark | Planned |
+| AI analysis of sensor readings + camera snapshots | Muse Spark vision (`muse-spark-1.3`) | Built, needs live key check ([Farm Advisory](docs/DAS_FARM_ADVISORY.md)) |
+| Flock behaviour detection (huddling, spreading, immobile birds) | SAM 3.1 + Muse Spark | Built, needs live key check ([Farm Advisory](docs/DAS_FARM_ADVISORY.md)) |
 | WhatsApp / SMS alerts | — | Planned |
 | **Outbreak Shield**: outbreak detection, spread tracking and anonymised regional warning ([details](#outbreak-shield)) | Muse Spark (`muse-spark-1.3`) | Built, in review |
 
