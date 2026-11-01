@@ -4,3 +4,6 @@ dist/
 .env.*
 !.env.example
 supabase/.temp/
+
+.vercel/
+.pnpm-store/
